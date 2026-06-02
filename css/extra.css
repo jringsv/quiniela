@@ -112,10 +112,10 @@
   padding:.4rem .2rem .2rem}
 .part-chk{display:flex; align-items:center; gap:.4rem; font-size:.82rem; cursor:pointer}
 .part-chk input{width:auto; margin:0}
-/* Equipos editables en llaves (admin) */
-.admin-partido-main .team-edit{flex:1; min-width:90px; width:auto; margin-top:0; padding:.4rem .5rem;
-  font-weight:700; font-size:.86rem}
-.admin-partido-main .team-edit[data-side="l"]{text-align:right}
+/* Equipos editables en llaves (admin): bandera + input */
+.admin-partido-main .team-edit-wrap{display:flex; align-items:center; gap:.35rem}
+.admin-partido-main .team-edit{flex:1; min-width:70px; width:auto; margin-top:0; padding:.4rem .5rem;
+  font-weight:700; font-size:.86rem; text-align:left}
 /* Barra "Calcular cruces" */
 .calc-cruces{margin:.6rem 0 .9rem; padding:.7rem .8rem; background:var(--panel2);
   border:1px solid var(--line); border-radius:12px}

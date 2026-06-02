@@ -35,7 +35,8 @@
       "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,720 --screenshot=C:/Temp/admin_m.png file:///C:/Temp/admin_preview.html)",
       "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,820 --screenshot=C:/Temp/admin_m2.png file:///C:/Temp/admin_preview.html)",
       "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,820 --screenshot=C:/Temp/admin_m3.png file:///C:/Temp/admin_preview.html)",
-      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=480,860 --screenshot=C:/Temp/admin_480.png file:///C:/Temp/admin_preview.html)"
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=480,860 --screenshot=C:/Temp/admin_480.png file:///C:/Temp/admin_preview.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=900,820 --screenshot=C:/Temp/sec.png file:///C:/Temp/sections_preview.html)"
     ],
     "additionalDirectories": [
       "\\tmp"

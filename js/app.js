@@ -245,15 +245,14 @@ function partidosActivos() {
   const admin = S.profile?.is_admin;
   // El jugador solo ve partidos activados Y definidos (las llaves "Por definir"
   // no se muestran hasta que el admin calcula los cruces reales).
+  // Orden por número: agrupa por sección (grupos 1–72, luego llaves 73–104).
   return S.partidos.filter((p) => estaActivo(p) && (admin || partidoDefinido(p)))
-    .slice().sort((a, b) => {
-      const fa = a.fecha ? new Date(a.fecha).getTime() : Infinity;
-      const fb = b.fecha ? new Date(b.fecha).getTime() : Infinity;
-      return fa - fb || (a.numero || 0) - (b.numero || 0);
-    });
+    .slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
 }
 const FASES_LABEL = (window.QUINIELA_CONFIG && window.QUINIELA_CONFIG.FASES_LABEL) || {};
 const fmtFase = (f) => FASES_LABEL[f] || f || "";
+// Encabezado de sección para agrupar visualmente: "Grupo X" o el nombre de la ronda.
+const seccionDe = (p) => p.fase === "grupos" ? "Grupo " + (p.grupo || "?") : fmtFase(p.fase);
 // Aviso para usuarios que aún no han sido autorizados por el admin.
 function renderApprovalBanner() {
   const b = $("#approvalBanner");
@@ -277,7 +276,15 @@ function renderMarcadores() {
     cont.innerHTML = '<p class="muted">Aún no estás habilitado en ningún partido. El administrador debe activarte para que puedas pronosticar.</p>';
     return;
   }
-  ms.forEach((p) => cont.appendChild(filaMarcador(p)));
+  let sec = null;
+  ms.forEach((p) => {
+    const s = seccionDe(p);
+    if (s !== sec) {
+      sec = s;
+      const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = s; cont.appendChild(h);
+    }
+    cont.appendChild(filaMarcador(p));
+  });
 }
 function filaMarcador(p) {
   const aplica = p.aplica_quiniela !== false;
@@ -286,7 +293,7 @@ function filaMarcador(p) {
   const row = document.createElement("div");
   row.className = "partido2" + (aplica ? "" : " no-aplica") + (cerrado ? " cerrado" : "");
   const sc = S.scores[p.numero] || {};
-  const ctx = (p.grupo ? "Gpo " + p.grupo : fmtFase(p.fase)) + " · " + fmtFecha(p.fecha);
+  const ctx = fmtFecha(p.fecha);
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
   const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
   const slotInputs = (slot) => {
@@ -680,21 +687,26 @@ function renderAdminPartidos() {
   const cont = $("#adminPartidos"); cont.innerHTML = "";
   const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
   if (!ms.length) { cont.innerHTML = '<p class="muted">Sin partidos. Usa "Agregar / importar".</p>'; return; }
+  let sec = null;
   ms.forEach((p) => {
+    const s = seccionDe(p);
+    if (s !== sec) {
+      sec = s;
+      const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = s; cont.appendChild(h);
+    }
     const aplica = p.aplica_quiniela !== false;   // por defecto aplica
     const activos = (S.activByPartido && S.activByPartido[p.id]) || new Set();
-    const ctx = (p.grupo ? "Gpo " + p.grupo : fmtFase(p.fase));
     const usersHtml = (S.adminUsers || []).length
       ? S.adminUsers.map((u) => `<label class="part-chk"><input type="checkbox" data-act-p="${p.id}" data-act-u="${u.id}" ${activos.has(u.id) ? "checked" : ""}> ${esc(u.nombre || u.email || "—")}</label>`).join("")
       : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
-    // En llaves los equipos son editables (se rellenan con "Calcular cruces");
-    // en grupos van fijos.
+    // En llaves los equipos son editables (se rellenan con "Calcular cruces") y
+    // muestran su bandera; en grupos van fijos.
     const editTeams = p.fase !== "grupos";
     const cellL = editTeams
-      ? `<input class="team-edit" type="text" data-team="${p.id}" data-side="l" value="${esc(p.equipo_local)}">`
+      ? `<span class="eq team-edit-wrap">${flagImg(p.equipo_local)}<input class="team-edit" type="text" data-team="${p.id}" data-side="l" value="${esc(p.equipo_local)}"></span>`
       : `<span class="eq">${teamRow(p.equipo_local)}</span>`;
     const cellV = editTeams
-      ? `<input class="team-edit" type="text" data-team="${p.id}" data-side="v" value="${esc(p.equipo_visitante)}">`
+      ? `<span class="eq v team-edit-wrap">${flagImg(p.equipo_visitante)}<input class="team-edit" type="text" data-team="${p.id}" data-side="v" value="${esc(p.equipo_visitante)}"></span>`
       : `<span class="eq v">${teamRow(p.equipo_visitante)}</span>`;
     const row = document.createElement("div"); row.className = "admin-partido" + (aplica ? "" : " no-aplica");
     row.innerHTML = `
@@ -708,7 +720,7 @@ function renderAdminPartidos() {
         <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos (3/1).">
           <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
         </label>
-        <span class="fch">${ctx} · ${fmtFecha(p.fecha)}</span>
+        <span class="fch">#${p.numero ?? "?"} · ${fmtFecha(p.fecha)}</span>
       </div>
       <details class="part-box">
         <summary>👥 Participantes (<span data-count="${p.id}">${activos.size}</span>)</summary>
