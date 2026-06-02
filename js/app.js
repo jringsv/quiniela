@@ -505,9 +505,10 @@ async function guardarDerivados(tablaAvance, tablaPos, res, userId) {
 async function renderMundialReal() {
   const { data: rb } = await sb.from("res_bracket").select("*");
   S.realWinners = {}; (rb || []).forEach((r) => (S.realWinners[r.match_no] = r.ganador));
-  const res = Bracket.resolve(grupoMatches(), realScores(), S.realWinners);
+  const w = winnersReales();
+  const res = Bracket.resolve(grupoMatches(), realScores(), w);
   renderGroups($("#gruposReal"), $("#tercerosReal"), res.groups, res.thirds);
-  renderBracket($("#bracketReal"), res, S.realWinners, false, null);
+  renderBracket($("#bracketReal"), res, w, false, null);
 }
 
 // ============================================================
@@ -551,8 +552,6 @@ async function renderAdmin() {
   renderAdminPartidos();
   const { data: rb } = await sb.from("res_bracket").select("*");
   S.realWinners = {}; (rb || []).forEach((r) => (S.realWinners[r.match_no] = r.ganador));
-  refreshAdminBracket();
-  $$("[data-calc]").forEach((b) => (b.onclick = () => calcularCruces(b.dataset.calc)));
 }
 // Carga usuarios elegibles (aprobados/admin) y el mapa de activaciones por partido.
 async function cargarAdminActivacion() {
@@ -652,36 +651,47 @@ async function borrarUsuario(id, nombre, nPred) {
   if (error) { alert("Error al borrar: " + error.message); return; }
   await renderAdminUsuarios();
 }
-function refreshAdminBracket() {
-  const res = Bracket.resolve(grupoMatches(), realScores(), S.realWinners);
-  renderBracket($("#bracketAdmin"), res, S.realWinners, true, (n, side) => {
-    S.realWinners[n] = side; refreshAdminBracket();
+// Números de partido de eliminatoria (73..104), en orden de ronda.
+const KO_NUMS = Array.from({ length: 32 }, (_, i) => 73 + i);
+// Ganador real de cada llave: del MARCADOR si es decisivo; del desempate
+// guardado (penales/prórroga) si quedó empatado. Devuelve {numero: 'a'|'b'}.
+function winnersReales() {
+  const w = {};
+  KO_NUMS.forEach((n) => {
+    const p = S.partidos.find((x) => x.numero === n);
+    if (!p || p.gol_local == null || p.gol_visitante == null) return;
+    if (p.gol_local > p.gol_visitante) w[n] = "a";
+    else if (p.gol_visitante > p.gol_local) w[n] = "b";
+    else if (S.realWinners[n] === "a" || S.realWinners[n] === "b") w[n] = S.realWinners[n];
   });
+  return w;
 }
-// Números de partido por ronda (coinciden con FIXTURE / CALENDARIO_LLAVES).
-const RONDA_NUMS = {
-  "16avos": Array.from({ length: 16 }, (_, i) => 73 + i),   // 73..88
-  "8vos":   Array.from({ length: 8 },  (_, i) => 89 + i),   // 89..96
-  "4tos":   Array.from({ length: 4 },  (_, i) => 97 + i),   // 97..100
-  "semis":  [101, 102],
-  "final":  [103, 104],                                     // 3.º y final
-};
-// Rellena los equipos reales de una ronda desde el cuadro (resultados de grupos
-// + ganadores elegidos por el admin). Escribe equipo_local/visitante en partidos.
-async function calcularCruces(fase) {
-  const nums = RONDA_NUMS[fase]; if (!nums) return;
-  const res = Bracket.resolve(grupoMatches(), realScores(), S.realWinners);
-  let ok = 0, pend = 0;
-  for (const num of nums) {
-    const p = S.partidos.find((x) => x.numero === num); if (!p) continue;
-    const t = res.teams[num] || {};
+// Recalcula el cuadro (tablas + ganadores) y ESCRIBE los equipos de cada llave
+// en "partidos". Se llama tras cada guardado de resultado. Solo actualiza filas
+// que cambian. Las llaves sin definir quedan en 'Por definir'.
+async function propagarLlaves() {
+  const res = Bracket.resolve(grupoMatches(), realScores(), winnersReales());
+  const ups = [];
+  KO_NUMS.forEach((n) => {
+    const p = S.partidos.find((x) => x.numero === n); if (!p) return;
+    const t = res.teams[n] || {};
     const a = t.a || POR_DEFINIR, b = t.b || POR_DEFINIR;
-    if (t.a && t.b) ok++; else pend++;
-    const { error } = await sb.from("partidos").update({ equipo_local: a, equipo_visitante: b }).eq("id", p.id);
-    if (error) { msg($("#calcMsg"), "Error: " + error.message, false); return; }
+    if (p.equipo_local !== a || p.equipo_visitante !== b) ups.push({ id: p.id, a, b });
+  });
+  for (const u of ups) {
+    const { error } = await sb.from("partidos").update({ equipo_local: u.a, equipo_visitante: u.b }).eq("id", u.id);
+    if (error) { console.error("propagarLlaves:", error.message); break; }
   }
-  await cargarPartidos(); renderAdminPartidos(); refreshAdminBracket();
-  msg($("#calcMsg"), `✅ ${fase}: ${ok} cruce(s) definido(s)${pend ? ` · ${pend} aún por definir` : ""}.`, true);
+  if (ups.length) await cargarPartidos();
+}
+// Desempate manual SOLO para llaves que terminaron empatadas (define quién pasó).
+async function setTiebreak(numero, side) {
+  await sb.from("res_bracket").delete().eq("match_no", numero);
+  const { error } = await sb.from("res_bracket").insert({ match_no: numero, ganador: side });
+  if (error) { alert("Error: " + error.message); return; }
+  S.realWinners[numero] = side;
+  await propagarLlaves();
+  renderAdminPartidos();
 }
 function renderAdminPartidos() {
   const cont = $("#adminPartidos"); cont.innerHTML = "";
@@ -699,29 +709,32 @@ function renderAdminPartidos() {
     const usersHtml = (S.adminUsers || []).length
       ? S.adminUsers.map((u) => `<label class="part-chk"><input type="checkbox" data-act-p="${p.id}" data-act-u="${u.id}" ${activos.has(u.id) ? "checked" : ""}> ${esc(u.nombre || u.email || "—")}</label>`).join("")
       : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
-    // En llaves los equipos son editables (se rellenan con "Calcular cruces") y
-    // muestran su bandera; en grupos van fijos.
-    const editTeams = p.fase !== "grupos";
-    const cellL = editTeams
-      ? `<span class="eq team-edit-wrap">${flagImg(p.equipo_local)}<input class="team-edit" type="text" data-team="${p.id}" data-side="l" value="${esc(p.equipo_local)}"></span>`
-      : `<span class="eq">${teamRow(p.equipo_local)}</span>`;
-    const cellV = editTeams
-      ? `<span class="eq v team-edit-wrap">${flagImg(p.equipo_visitante)}<input class="team-edit" type="text" data-team="${p.id}" data-side="v" value="${esc(p.equipo_visitante)}"></span>`
-      : `<span class="eq v">${teamRow(p.equipo_visitante)}</span>`;
+    // Los equipos de llaves se rellenan SOLOS al guardar resultados (no se editan).
+    const esLlave = p.fase !== "grupos";
+    const empate = p.gol_local != null && p.gol_local === p.gol_visitante;
+    const win = S.realWinners[p.numero];
+    // Selector de desempate: solo en llaves empatadas y ya definidas (penales/prórroga).
+    const tbHtml = (esLlave && empate && partidoDefinido(p))
+      ? `<div class="tiebreak">⚖️ Empate — pasó:
+          <button class="btn small ${win === "a" ? "sel" : ""}" data-tb="${p.numero}" data-side="a">${esc(p.equipo_local)}</button>
+          <button class="btn small ${win === "b" ? "sel" : ""}" data-tb="${p.numero}" data-side="b">${esc(p.equipo_visitante)}</button>
+        </div>`
+      : "";
     const row = document.createElement("div"); row.className = "admin-partido" + (aplica ? "" : " no-aplica");
     row.innerHTML = `
       <div class="admin-partido-main">
-        ${cellL}
+        <span class="eq">${teamRow(p.equipo_local)}</span>
         <input type="number" min="0" max="99" data-rid="${p.id}" data-side="l" value="${p.gol_local ?? ""}">
         <span class="vs">vs</span>
         <input type="number" min="0" max="99" data-rid="${p.id}" data-side="v" value="${p.gol_visitante ?? ""}">
-        ${cellV}
+        <span class="eq v">${teamRow(p.equipo_visitante)}</span>
         <button class="btn small" data-save="${p.id}">Guardar</button>
         <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos (3/1).">
           <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
         </label>
         <span class="fch">#${p.numero ?? "?"} · ${fmtFecha(p.fecha)}</span>
       </div>
+      ${tbHtml}
       <details class="part-box">
         <summary>👥 Participantes (<span data-count="${p.id}">${activos.size}</span>)</summary>
         <div class="part-list">${usersHtml}</div>
@@ -731,6 +744,7 @@ function renderAdminPartidos() {
   cont.querySelectorAll("[data-save]").forEach((b) => (b.onclick = () => guardarResultado(b.dataset.save)));
   cont.querySelectorAll("[data-aplica]").forEach((c) => (c.onchange = () => guardarAplica(c.dataset.aplica, c.checked)));
   cont.querySelectorAll("[data-act-p]").forEach((c) => (c.onchange = () => toggleParticipante(+c.dataset.actP, c.dataset.actU, c.checked)));
+  cont.querySelectorAll("[data-tb]").forEach((b) => (b.onclick = () => setTiebreak(+b.dataset.tb, b.dataset.side)));
 }
 async function guardarAplica(id, aplica) {
   const { error } = await sb.from("partidos").update({ aplica_quiniela: aplica }).eq("id", +id);
@@ -742,13 +756,11 @@ async function guardarResultado(id) {
   const l = document.querySelector(`[data-rid="${id}"][data-side="l"]`).value;
   const v = document.querySelector(`[data-rid="${id}"][data-side="v"]`).value;
   const upd = { gol_local: l === "" ? null : +l, gol_visitante: v === "" ? null : +v };
-  const tl = document.querySelector(`[data-team="${id}"][data-side="l"]`);
-  const tv = document.querySelector(`[data-team="${id}"][data-side="v"]`);
-  if (tl) upd.equipo_local = tl.value.trim() || POR_DEFINIR;
-  if (tv) upd.equipo_visitante = tv.value.trim() || POR_DEFINIR;
   const { error } = await sb.from("partidos").update(upd).eq("id", id);
   if (error) return alert("Error: " + error.message);
-  await cargarPartidos(); renderAdminPartidos(); refreshAdminBracket();
+  await cargarPartidos();
+  await propagarLlaves();     // alimenta las llaves automáticamente
+  renderAdminPartidos();
 }
 $("#importBtn").onclick = async () => {
   const txt = $("#importBox").value.trim(); if (!txt) return;
@@ -761,21 +773,8 @@ $("#importBtn").onclick = async () => {
   if (!payload.length) return alert("No se reconocieron filas válidas.");
   const { error } = await sb.from("partidos").insert(payload);
   if (error) return alert("Error: " + error.message);
-  $("#importBox").value = ""; await cargarPartidos(); renderAdminPartidos(); refreshAdminBracket();
+  $("#importBox").value = ""; await cargarPartidos(); await propagarLlaves(); renderAdminPartidos();
   alert(`✅ ${payload.length} partidos importados.`);
-};
-$("#saveAdminBracket").onclick = async () => {
-  const btn = $("#saveAdminBracket"); btn.disabled = true;
-  try {
-    await sb.from("res_bracket").delete().neq("match_no", -1);
-    const br = Object.entries(S.realWinners).filter(([, v]) => v === "a" || v === "b")
-      .map(([n, v]) => ({ match_no: +n, ganador: v }));
-    if (br.length) { const { error } = await sb.from("res_bracket").insert(br); if (error) throw error; }
-    const res = Bracket.resolve(grupoMatches(), realScores(), S.realWinners);
-    await guardarDerivados("resultado_avance", "resultado_posicion", res, null);
-    msg($("#adminBracketMsg"), "✅ Llaves reales guardadas. La tabla de posiciones se recalculó.", true);
-  } catch (e) { msg($("#adminBracketMsg"), "Error: " + e.message, false); }
-  finally { btn.disabled = false; }
 };
 
 // ============================================================

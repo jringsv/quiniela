@@ -106,18 +106,22 @@ A–L, 48 equipos) con equipos, grupo y fecha reales.
 #### ¿Y las eliminatorias (16avos, 8vos, etc.)?
 Las llaves se pronostican **como partidos normales** (marcador 3/1, dos pronósticos, ambos suman).
 Los 32 partidos (73–104) se crean con [`supabase/seed_llaves.sql`](supabase/seed_llaves.sql) con sus
-fechas/sedes reales y equipos en **"Por definir"**. Flujo del admin cuando termina cada ronda:
+fechas/sedes reales y equipos en **"Por definir"**.
 
-1. Cargar los resultados de grupos (marcadores) → se arman las tablas.
-2. En **Admin → "🧮 Calcular 16avos"**: rellena los equipos reales de esa ronda desde las tablas.
-3. En **"Resultados reales — llaves"**, marcar el **ganador** de cada cruce de 16avos (esto define
-   quién avanza, incluso si fue por penales) y **Guardar llaves reales**.
-4. **"Calcular 8vos"**, marcar ganadores, y así sucesivamente hasta **"Calcular 3.º y Final"**.
+**Las llaves se llenan SOLAS.** El admin solo carga marcadores; al guardar, el cuadro se recalcula y
+propaga automáticamente:
+
+1. Al guardar resultados de grupos, en cuanto un grupo termina se arman sus llaves de 16avos
+   (los slots de "mejor tercero" se completan cuando termina **toda** la fase de grupos).
+2. Al guardar el resultado de una llave, su **ganador sale del marcador** y alimenta la ronda
+   siguiente. No hay botones de "calcular" ni que elegir ganadores.
+3. **Solo si una llave queda empatada** (penales/prórroga) aparece un botón **"⚖️ Empate — pasó:
+   [equipo A] / [equipo B]"** para indicar quién avanzó (el marcador empatado no lo dice).
 
 A nivel de jugador, una llave **solo aparece cuando sus dos equipos ya están definidos** (no
 "Por definir") **y** el admin lo activó. El **puntaje usa el marcador con que terminó el partido,
 sin penales**: un 1–1 definido por penales cuenta como empate para los puntos. La vista
-**Mundial (real)** muestra el cuadro verdadero a partir de los ganadores que marca el admin.
+**Mundial (real)** muestra el cuadro verdadero, derivado de esos marcadores y desempates.
 
 ---
 
