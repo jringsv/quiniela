@@ -83,9 +83,12 @@ $("#authForm").onsubmit = async (e) => {
   try {
     if (S.authMode === "register") {
       if (!nombre) throw new Error("Escribe tu nombre.");
-      const { data, error } = await sb.auth.signUp({ email, password: pass });
+      // Guardamos el nombre en los metadatos del usuario: así sobrevive aunque
+      // haya que confirmar el correo (en ese caso aún no hay sesión y el upsert
+      // de abajo lo bloquearía RLS). Al primer login usamos este metadato.
+      const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { nombre } } });
       if (error) throw error;
-      if (data.user) await sb.from("profiles").upsert({ id: data.user.id, nombre });
+      if (data.session && data.user) await sb.from("profiles").upsert({ id: data.user.id, nombre });
       if (!data.session) { msg(m, "Cuenta creada. Revisa tu correo y luego inicia sesión.", true); setAuthMode("login"); }
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password: pass });
@@ -121,7 +124,10 @@ async function onLogin() {
   try {
     let { data: prof } = await sb.from("profiles").select("*").eq("id", S.user.id).single();
     if (!prof) {
-      await sb.from("profiles").upsert({ id: S.user.id, nombre: S.user.email.split("@")[0] });
+      // Preferimos el nombre que el usuario escribió al registrarse (guardado en
+      // los metadatos); si no existe, caemos al prefijo del correo.
+      const nombreReg = (S.user.user_metadata?.nombre || "").trim() || S.user.email.split("@")[0];
+      await sb.from("profiles").upsert({ id: S.user.id, nombre: nombreReg });
       ({ data: prof } = await sb.from("profiles").select("*").eq("id", S.user.id).single());
     }
     S.profile = prof;
@@ -488,10 +494,9 @@ async function renderAdmin() {
 // ---------- Admin: aprobar usuarios ----------
 async function renderAdminUsuarios() {
   const cont = $("#adminUsuarios"); if (!cont) return;
-  const { data: usuarios, error } = await sb.from("profiles")
-    .select("id, nombre, aprobado, is_admin, created_at")
-    .order("aprobado", { ascending: true })
-    .order("created_at", { ascending: true });
+  // admin_list_users() trae además el correo, el nombre con el que se registró
+  // y cuántas predicciones tiene cada usuario.
+  const { data: usuarios, error } = await sb.rpc("admin_list_users");
   if (error) { cont.innerHTML = `<p class="muted">Error: ${error.message}</p>`; return; }
   if (!usuarios?.length) { cont.innerHTML = '<p class="muted">Aún no hay usuarios registrados.</p>'; return; }
 
@@ -507,14 +512,24 @@ async function renderAdminUsuarios() {
       : u.aprobado
         ? '<span class="badge-ok">autorizado</span>'
         : '<span class="badge-pend">pendiente</span>';
-    // El admin no puede revocarse a sí mismo ni cambiar a otros admins desde aquí.
-    const accion = u.is_admin
+    // El admin no puede revocarse a sí mismo ni cambiar/borrar a otros admins desde aquí.
+    let accion = u.is_admin
       ? ""
       : u.aprobado
         ? `<button class="btn small ghost" data-revocar="${u.id}">Revocar</button>`
         : `<button class="btn small" data-aprobar="${u.id}">Autorizar</button>`;
+    const esc = (s) => (s || "").replace(/"/g, "&quot;");
+    // Para editar prellenamos con el nombre real con el que se registró
+    // (si existe); así se corrige fácil cuando quedó guardado el correo.
+    const prefill = u.nombre_registrado || u.nombre || "";
+    // Editar nombre y borrar: disponibles para cualquier usuario que no sea admin.
+    if (!u.is_admin) {
+      accion += ` <button class="btn small ghost" data-editar="${u.id}" data-prefill="${esc(prefill)}">Editar nombre</button>`;
+      if (!esYo) accion += ` <button class="btn small danger" data-borrar="${u.id}" data-nombre="${esc(u.nombre)}" data-npred="${u.n_predicciones || 0}">Borrar</button>`;
+    }
     html += `<div class="user-row ${u.aprobado || u.is_admin ? "" : "pend"}">
-      <span class="u-nombre">${u.nombre || "(sin nombre)"}${esYo ? " (tú)" : ""}</span>
+      <span class="u-nombre">${u.nombre || "(sin nombre)"}${esYo ? " (tú)" : ""}
+        <span class="u-email">${u.email || ""}</span></span>
       ${estado}
       <span class="u-accion">${accion}</span>
     </div>`;
@@ -525,10 +540,32 @@ async function renderAdminUsuarios() {
     (b.onclick = () => setAprobado(b.dataset.aprobar, true)));
   cont.querySelectorAll("[data-revocar]").forEach((b) =>
     (b.onclick = () => setAprobado(b.dataset.revocar, false)));
+  cont.querySelectorAll("[data-editar]").forEach((b) =>
+    (b.onclick = () => editarNombreUsuario(b.dataset.editar, b.dataset.prefill)));
+  cont.querySelectorAll("[data-borrar]").forEach((b) =>
+    (b.onclick = () => borrarUsuario(b.dataset.borrar, b.dataset.nombre, +b.dataset.npred)));
 }
 async function setAprobado(id, aprobado) {
   const { error } = await sb.from("profiles").update({ aprobado }).eq("id", id);
   if (error) { alert("Error: " + error.message); return; }
+  await renderAdminUsuarios();
+}
+async function editarNombreUsuario(id, nombreActual) {
+  const nombre = prompt("Nuevo nombre para el usuario:", nombreActual || "");
+  if (nombre === null) return;                 // canceló
+  const limpio = nombre.trim();
+  if (!limpio) { alert("El nombre no puede quedar vacío."); return; }
+  const { error } = await sb.from("profiles").update({ nombre: limpio }).eq("id", id);
+  if (error) { alert("Error: " + error.message); return; }
+  await renderAdminUsuarios();
+}
+async function borrarUsuario(id, nombre, nPred) {
+  const aviso = nPred > 0
+    ? `Se eliminarán su cuenta y sus ${nPred} predicción(es).`
+    : `Se eliminará su cuenta (no tiene predicciones guardadas).`;
+  if (!confirm(`¿Borrar a "${nombre || "este usuario"}"?\n\n${aviso}\nEsta acción NO se puede deshacer.`)) return;
+  const { error } = await sb.rpc("admin_delete_user", { uid: id });
+  if (error) { alert("Error al borrar: " + error.message); return; }
   await renderAdminUsuarios();
 }
 function refreshAdminBracket() {

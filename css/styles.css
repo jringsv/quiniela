@@ -51,9 +51,9 @@ main{max-width:940px; margin:1.4rem auto; padding:0 1rem}
   border-radius:var(--radius); padding:1.2rem 1.3rem; margin-bottom:1.2rem;
   box-shadow:var(--shadow); overflow:hidden;
 }
-/* franja superior delgada en color anfitrión (verde-blanco-rojo) */
+/* franja superior delgada en azul */
 .card::before{content:""; position:absolute; inset:0 0 auto 0; height:4px;
-  background:linear-gradient(90deg,var(--green) 0 38%,#fff 38% 62%,var(--red) 62% 100%)}
+  background:linear-gradient(90deg,var(--blue),var(--blue2))}
 .card h2{margin:.25rem 0 .3rem; font-size:1.18rem; font-weight:800; color:var(--blue)}
 h1{margin:.2rem 0 .4rem; font-weight:900; color:var(--blue)}
 
@@ -69,6 +69,8 @@ h1{margin:.2rem 0 .4rem; font-weight:900; color:var(--blue)}
   box-shadow:0 5px 14px rgba(10,49,97,.25)}
 .btn.primary:hover{background:var(--blue2); border-color:var(--blue2)}
 .btn.small{padding:.32rem .65rem; font-size:.8rem}
+.btn.danger{color:#c0271c; border-color:#e7b3ae}
+.btn.danger:hover{background:#c0271c; border-color:#c0271c; color:#fff; box-shadow:0 4px 12px rgba(192,39,28,.2)}
 .btn.block{width:100%; margin-top:.4rem}
 .btn:disabled{opacity:.45; cursor:not-allowed; box-shadow:none}
 

@@ -80,8 +80,9 @@
 .usuarios-admin .pendientes-aviso{margin:.2rem 0 .6rem; font-weight:700; color:#b4422f}
 .user-row{display:flex; align-items:center; gap:.6rem; padding:.45rem .2rem;
   border-bottom:1px solid var(--line2)}
-.user-row .u-nombre{flex:1; font-weight:600}
-.user-row .u-accion{margin-left:auto}
+.user-row .u-nombre{flex:1; font-weight:600; display:flex; flex-direction:column; line-height:1.25}
+.user-row .u-email{font-weight:400; font-size:.78rem; color:#6b7280}
+.user-row .u-accion{margin-left:auto; display:flex; gap:.35rem; flex-wrap:wrap; justify-content:flex-end}
 .user-row.pend{background:rgba(213,43,30,.05)}
 .badge-ok,.badge-pend,.badge-admin{font-size:.66rem; padding:.08rem .45rem; border-radius:6px;
   font-weight:700; text-transform:uppercase; letter-spacing:.03em}

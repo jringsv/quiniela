@@ -6,6 +6,11 @@
 --  Es idempotente y NO destructivo.
 -- ============================================================
 
+-- 0) Dependencia: la columna 'aplica_quiniela' (de otra migración) la usa
+--    get_leaderboard() más abajo. La creamos aquí también por si esa
+--    migración aún no se ejecutó, para que este script sea autosuficiente.
+alter table partidos add column if not exists aplica_quiniela boolean not null default true;
+
 -- 1) Columna 'aprobado' en profiles (por defecto NO aprobado)
 alter table profiles add column if not exists aprobado boolean not null default false;
 
