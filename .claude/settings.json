@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la)",
+      "Bash(find . -maxdepth 3 -iname \"*.xlsx\" -o -iname \"*.xls\")",
+      "PowerShell(\"hello test\")",
+      "Read(//c/Users/GERENTE-IT/OneDrive - Club Salvadore�o/Proyectos Gerencia IT - 2026/Desarrollo/periscope-hub/**)",
+      "PowerShell(Get-ChildItem -Recurse -File \"c:\\\\Users\\\\GERENTE-IT\\\\OneDrive - Club Salvadoreño\\\\Escritorio\\\\Mundial\" | Select-Object @{n='Rel';e={$_.FullName.Replace\\('c:\\\\Users\\\\GERENTE-IT\\\\OneDrive - Club Salvadoreño\\\\Escritorio\\\\Mundial\\\\',''\\)}}, @{n='KB';e={[math]::Round\\($_.Length/1KB,1\\)}} | Format-Table -AutoSize | Out-String)",
+      "Read(//tmp/**)",
+      "Read(//tmp/xl/unz/xl/**)",
+      "Bash(cp /tmp/pychk.txt /c/Temp/pychk_copy.txt 2>&1; echo done)",
+      "PowerShell(& C:\\\\Temp\\\\extract_xlsx.ps1)",
+      "PowerShell(\"FLUSH MARKER 2\")",
+      "PowerShell(\"ping\")",
+      "Bash(/c/Users/GERENTE-IT/AppData/Local/Programs/Python/Python314/python /c/Temp/dump.py)",
+      "Bash(/c/Users/GERENTE-IT/AppData/Local/Programs/Python/Python314/python /c/Temp/gen_seed.py)",
+      "WebSearch"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

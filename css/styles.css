@@ -1,0 +1,193 @@
+/* ============================================================
+   Quiniela Mundial 2026 — Tema CLARO, 4 colores anfitriones
+   Blanco · Azul (EE.UU.) · Verde (México) · Rojo (Canadá)
+   ============================================================ */
+:root{
+  /* Paleta (solo estos 4 + neutros para texto/bordes) */
+  --blue:#0a3161;          /* azul EE.UU. (principal) */
+  --blue2:#15498f;         /* azul más claro para degradados */
+  --green:#006847;         /* verde México */
+  --red:#d52b1e;           /* rojo Canadá */
+  --white:#ffffff;
+
+  /* Neutros */
+  --bg:#f5f7fa; --bg2:#eef2f7; --panel:#ffffff; --panel2:#f7f9fc;
+  --ink:#1b2430; --muted:#69748a; --line:#e4e9f1; --line2:#eef2f7;
+
+  --radius:15px; --shadow:0 8px 24px rgba(10,49,97,.08);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--ink); line-height:1.45; min-height:100vh;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);
+}
+.hidden{display:none !important}
+.muted{color:var(--muted)}
+.small{font-size:.82rem}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  display:flex; align-items:center; gap:1rem; padding:.7rem 1.2rem;
+  background:linear-gradient(90deg,var(--blue),var(--blue2)); color:#fff;
+  position:sticky; top:0; z-index:10; box-shadow:0 3px 14px rgba(10,49,97,.22);
+  border-bottom:3px solid var(--red);
+}
+.brand{font-weight:900; font-size:1.18rem; white-space:nowrap; letter-spacing:.2px}
+.nav{display:flex; gap:.4rem; flex:1}
+.tab{
+  background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.3); color:#fff;
+  padding:.45rem .9rem; border-radius:999px; cursor:pointer; font-weight:700; font-size:.9rem;
+}
+.tab:hover{background:rgba(255,255,255,.26)}
+.tab.active{background:#fff; color:var(--blue); border-color:#fff}
+.user-box{display:flex; align-items:center; gap:.6rem}
+.user-name{font-weight:700; font-size:.9rem}
+
+/* ---------- Layout ---------- */
+main{max-width:940px; margin:1.4rem auto; padding:0 1rem}
+.card{
+  position:relative; background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:1.2rem 1.3rem; margin-bottom:1.2rem;
+  box-shadow:var(--shadow); overflow:hidden;
+}
+/* franja superior delgada en color anfitrión (verde-blanco-rojo) */
+.card::before{content:""; position:absolute; inset:0 0 auto 0; height:4px;
+  background:linear-gradient(90deg,var(--green) 0 38%,#fff 38% 62%,var(--red) 62% 100%)}
+.card h2{margin:.25rem 0 .3rem; font-size:1.18rem; font-weight:800; color:var(--blue)}
+h1{margin:.2rem 0 .4rem; font-weight:900; color:var(--blue)}
+
+/* ---------- Botones ---------- */
+.btn{
+  background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+  padding:.55rem 1.05rem; border-radius:11px; cursor:pointer; font-weight:700; font-size:.92rem;
+  transition:transform .05s, box-shadow .15s, border-color .15s;
+}
+.btn:hover{border-color:var(--blue); box-shadow:0 4px 12px rgba(10,49,97,.12)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--blue); border:1px solid var(--blue); color:#fff;
+  box-shadow:0 5px 14px rgba(10,49,97,.25)}
+.btn.primary:hover{background:var(--blue2); border-color:var(--blue2)}
+.btn.small{padding:.32rem .65rem; font-size:.8rem}
+.btn.block{width:100%; margin-top:.4rem}
+.btn:disabled{opacity:.45; cursor:not-allowed; box-shadow:none}
+
+/* ---------- Auth ---------- */
+.auth-view{
+  position:fixed; inset:0; z-index:50; overflow:auto;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:1.1rem; padding:1.4rem;
+  background:
+    radial-gradient(1100px 480px at 12% -12%, rgba(0,104,71,.32), transparent 60%),
+    radial-gradient(1100px 480px at 112% 112%, rgba(213,43,30,.30), transparent 55%),
+    linear-gradient(160deg,#0a3161,#0e2547);
+}
+.auth-card{
+  width:100%; max-width:400px; margin:0;
+  padding:2rem 1.9rem 1.8rem;
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow:0 24px 60px rgba(2,12,30,.45);
+  animation:authIn .35s ease;
+}
+.auth-card::before{display:none}
+@keyframes authIn{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
+.auth-head{text-align:center; margin-bottom:1.25rem}
+.auth-logo{height:82px; width:auto; max-width:150px; margin:0 auto .6rem; display:block;
+  object-fit:contain; filter:drop-shadow(0 6px 14px rgba(10,49,97,.25))}
+.auth-head h1{font-size:1.45rem; margin:.1rem 0 .25rem; text-align:center}
+.auth-sub{margin:0; font-size:.9rem; text-align:center}
+.auth-foot{color:rgba(255,255,255,.9); text-align:center; letter-spacing:.3px}
+
+.tabs-mini{display:flex; gap:.25rem; margin:0 0 1.15rem; background:var(--bg2);
+  padding:.28rem; border-radius:12px}
+.mini{flex:1; background:transparent; border:none; color:var(--muted);
+  padding:.55rem; border-radius:9px; cursor:pointer; font-weight:700; font-size:.9rem;
+  transition:background .15s, color .15s, box-shadow .15s}
+.mini:hover:not(.active){color:var(--ink)}
+.mini.active{background:#fff; color:var(--blue); box-shadow:0 2px 8px rgba(10,49,97,.15)}
+
+.pass-wrap{position:relative}
+.pass-wrap input{padding-right:2.6rem}
+.pass-toggle{position:absolute; right:.35rem; top:50%; transform:translateY(-50%);
+  background:none; border:none; cursor:pointer; font-size:1.05rem; line-height:1;
+  padding:.3rem .4rem; opacity:.55; transition:opacity .15s}
+.pass-toggle:hover{opacity:1}
+
+form label{display:block; margin-bottom:.75rem; font-size:.82rem; font-weight:600; color:var(--muted)}
+input,select,textarea{
+  width:100%; margin-top:.28rem; padding:.6rem .7rem; border-radius:11px;
+  border:1px solid var(--line); background:#fff; color:var(--ink); font-size:.95rem;
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(10,49,97,.14)}
+input[type=number]{width:60px; text-align:center; padding:.5rem .35rem; font-weight:700}
+.msg{min-height:1.2rem; font-size:.88rem; margin:.6rem 0 0; text-align:center}
+.msg.ok{color:var(--green)} .msg.err{color:var(--red)}
+
+/* ---------- Banner ---------- */
+.banner{padding:.85rem 1.05rem; border-radius:12px; margin-bottom:1.1rem; font-weight:700;
+  border:1px solid transparent}
+.banner.locked{background:#fcebe9; border-color:#f3c6c1; color:var(--red)}
+.banner.open{background:#e7f4ee; border-color:#bfe3d2; color:var(--green)}
+
+/* ---------- Partidos ---------- */
+.grupo-h{margin:1.1rem 0 .4rem; font-weight:800; font-size:.96rem; color:var(--blue);
+  padding:.3rem .6rem; border-radius:9px; background:var(--bg2); border-left:5px solid var(--blue)}
+.partido{display:flex; align-items:center; gap:.55rem; padding:.5rem .2rem; flex-wrap:wrap;
+  border-bottom:1px solid var(--line2)}
+.partido .eq{flex:1; text-align:right; font-weight:700}
+.partido .eq.v{text-align:left}
+.partido .vs{color:var(--muted); font-size:.78rem; font-weight:600}
+.partido .real{color:var(--green); font-size:.78rem; font-weight:700; margin-left:.4rem;
+  background:#e7f4ee; padding:.1rem .4rem; border-radius:6px}
+.partido .fch{flex-basis:100%; color:var(--muted); font-size:.74rem}
+
+/* ---------- Avance / chips ---------- */
+.fase-block{margin-bottom:1.1rem}
+.fase-block h4{margin:.25rem 0; font-size:1rem; font-weight:800; color:var(--blue)}
+.chip-grid{display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.35rem}
+.chip{border:1px solid var(--line); background:#fff; border-radius:999px;
+  padding:.32rem .75rem; cursor:pointer; font-size:.84rem; font-weight:600; user-select:none;
+  transition:all .12s}
+.chip:hover{border-color:var(--green)}
+.chip.sel{background:var(--green); color:#fff; border-color:var(--green); font-weight:800;
+  box-shadow:0 3px 8px rgba(0,104,71,.25)}
+.counter{font-size:.78rem; color:var(--muted); margin-left:.4rem; font-weight:700}
+.counter.full{color:var(--green)}
+
+/* ---------- Posiciones ---------- */
+.posiciones label, .posiciones .row{display:flex; align-items:center; gap:.6rem; margin-bottom:.65rem}
+.posiciones .row span{min-width:130px; font-weight:700}
+.posiciones select{max-width:300px}
+
+/* ---------- Leaderboard ---------- */
+.leaderboard{width:100%; border-collapse:collapse; margin-top:.5rem}
+.leaderboard th,.leaderboard td{padding:.55rem .4rem; text-align:center; border-bottom:1px solid var(--line2)}
+.leaderboard th{color:var(--muted); font-size:.74rem; text-transform:uppercase; letter-spacing:.04em}
+.leaderboard td:nth-child(2){text-align:left; font-weight:700}
+.leaderboard td.total{font-weight:900; color:var(--blue); font-size:1.05rem}
+.leaderboard tr:hover{background:var(--panel2)}
+.leaderboard tr.me{background:rgba(10,49,97,.07)}
+.rank1{background:rgba(0,104,71,.10)}      /* verde */
+.rank2{background:rgba(10,49,97,.08)}      /* azul  */
+.rank3{background:rgba(213,43,30,.08)}     /* rojo  */
+.live{font-size:.7rem; color:var(--green); margin-left:.5rem; font-weight:700; animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ---------- Admin ---------- */
+.admin .partido input{width:54px}
+.admin-import textarea{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.82rem; background:var(--panel2)}
+details summary{cursor:pointer; color:var(--blue); font-weight:700; margin-bottom:.6rem}
+code{background:var(--bg2); padding:.1rem .35rem; border-radius:6px; font-size:.8rem; color:var(--blue)}
+
+/* ---------- Footer ---------- */
+.foot{text-align:center; color:var(--muted); font-size:.78rem; padding:1.4rem 1rem 2.4rem}
+
+@media(max-width:560px){
+  .brand{font-size:1rem}
+  .nav{order:3; flex-basis:100%; justify-content:center}
+  .leaderboard th:nth-child(3),.leaderboard td:nth-child(3),
+  .leaderboard th:nth-child(4),.leaderboard td:nth-child(4),
+  .leaderboard th:nth-child(5),.leaderboard td:nth-child(5){display:none}
+}

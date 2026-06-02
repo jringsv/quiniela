@@ -1,0 +1,10 @@
+# Pega estas líneas en Admin -> "Agregar / importar partidos".
+# Formato:  numero | fase | grupo | local | visitante | fecha(YYYY-MM-DD HH:mm)
+# fase = grupos,16avos,8vos,4tos,semis,tercer_puesto,final
+# Esto es solo un EJEMPLO. Reemplaza equipos/fechas con los del Excel oficial.
+
+1 | grupos | A | Equipo A1 | Equipo A2 | 2026-06-11 19:00
+2 | grupos | A | Equipo A3 | Equipo A4 | 2026-06-11 21:00
+3 | grupos | B | Equipo B1 | Equipo B2 | 2026-06-12 13:00
+4 | grupos | B | Equipo B3 | Equipo B4 | 2026-06-12 16:00
+5 | grupos | C | Equipo C1 | Equipo C2 | 2026-06-12 19:00

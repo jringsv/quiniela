@@ -1,0 +1,74 @@
+# Calendario fase de grupos (Mundial 2026) - formato de importacion del admin
+# numero | fase | grupo | local | visitante | fecha
+1 | grupos | A | México | Sudáfrica | 2026-06-11 15:00
+2 | grupos | A | Rep. de Corea | Checa | 2026-06-11 22:00
+3 | grupos | B | Canadá | Bosnia/Herzeg. | 2026-06-12 15:00
+4 | grupos | D | EE.UU. | Paraguay | 2026-06-12 21:00
+5 | grupos | C | Haiti | Escocia | 2026-06-13 21:00
+6 | grupos | D | Australia | Turquía | 2026-06-14 00:00
+7 | grupos | C | Brasil | Marruecos | 2026-06-13 18:00
+8 | grupos | B | Qatar | Suiza | 2026-06-13 15:00
+9 | grupos | E | Costa de Marfil | Ecuador | 2026-06-14 19:00
+10 | grupos | E | Alemania | Curazao | 2026-06-14 13:00
+11 | grupos | F | Países Bajos | Japón | 2026-06-14 16:00
+12 | grupos | F | Suecia | Túnez | 2026-06-14 22:00
+13 | grupos | H | Arabia Saudita | Uruguay | 2026-06-15 18:00
+14 | grupos | H | España | Cabo Verde | 2026-06-15 12:00
+15 | grupos | G | IR Irán | Nueva Zelanda | 2026-06-15 21:00
+16 | grupos | G | Bélgica | Egipto | 2026-06-15 15:00
+17 | grupos | I | Francia | Senegal | 2026-06-16 15:00
+18 | grupos | I | Iraq | Noruega | 2026-06-16 18:00
+19 | grupos | J | Argentina | Argelia | 2026-06-16 21:00
+20 | grupos | J | Austria | Jordán | 2026-06-17 00:00
+21 | grupos | L | Ghana | Panamá | 2026-06-17 19:00
+22 | grupos | L | Inglaterra | Croacia | 2026-06-17 16:00
+23 | grupos | K | Portugal | RD Congo | 2026-06-17 13:00
+24 | grupos | K | Uzbekistán | Colombia | 2026-06-17 22:00
+25 | grupos | A | Checa | Sudáfrica | 2026-06-18 12:00
+26 | grupos | B | Suiza | Bosnia/Herzeg. | 2026-06-18 15:00
+27 | grupos | B | Canadá | Qatar | 2026-06-18 18:00
+28 | grupos | A | México | Rep. de Corea | 2026-06-18 21:00
+29 | grupos | C | Brasil | Haiti | 2026-06-19 20:30
+30 | grupos | C | Escocia | Marruecos | 2026-06-19 18:00
+31 | grupos | D | Turquía | Paraguay | 2026-06-19 23:00
+32 | grupos | D | EE.UU. | Australia | 2026-06-19 15:00
+33 | grupos | E | Alemania | Costa de Marfil | 2026-06-20 16:00
+34 | grupos | E | Ecuador | Curazao | 2026-06-20 20:00
+35 | grupos | F | Países Bajos | Suecia | 2026-06-20 13:00
+36 | grupos | F | Túnez | Japón | 2026-06-21 00:00
+37 | grupos | H | Uruguay | Cabo Verde | 2026-06-21 18:00
+38 | grupos | H | España | Arabia Saudita | 2026-06-21 12:00
+39 | grupos | G | Bélgica | IR Irán | 2026-06-21 15:00
+40 | grupos | G | Nueva Zelanda | Egipto | 2026-06-21 21:00
+41 | grupos | I | Noruega | Senegal | 2026-06-22 20:00
+42 | grupos | I | Francia | Iraq | 2026-06-22 17:00
+43 | grupos | J | Argentina | Austria | 2026-06-22 13:00
+44 | grupos | J | Jordán | Argelia | 2026-06-22 23:00
+45 | grupos | L | Inglaterra | Ghana | 2026-06-23 16:00
+46 | grupos | L | Panamá | Croacia | 2026-06-23 19:00
+47 | grupos | K | Portugal | Uzbekistán | 2026-06-23 13:00
+48 | grupos | K | Colombia | RD Congo | 2026-06-23 22:00
+49 | grupos | C | Escocia | Brasil | 2026-06-24 18:00
+50 | grupos | C | Marruecos | Haiti | 2026-06-24 18:00
+51 | grupos | B | Suiza | Canadá | 2026-06-24 15:00
+52 | grupos | B | Bosnia/Herzeg. | Qatar | 2026-06-24 15:00
+53 | grupos | A | Checa | México | 2026-06-24 21:00
+54 | grupos | A | Sudáfrica | Rep. de Corea | 2026-06-24 21:00
+55 | grupos | E | Curazao | Costa de Marfil | 2026-06-25 16:00
+56 | grupos | E | Ecuador | Alemania | 2026-06-25 16:00
+57 | grupos | F | Japón | Suecia | 2026-06-25 19:00
+58 | grupos | F | Túnez | Países Bajos | 2026-06-25 19:00
+59 | grupos | D | Turquía | EE.UU. | 2026-06-25 22:00
+60 | grupos | D | Paraguay | Australia | 2026-06-25 22:00
+61 | grupos | I | Noruega | Francia | 2026-06-26 15:00
+62 | grupos | I | Senegal | Iraq | 2026-06-26 15:00
+63 | grupos | G | Egipto | IR Irán | 2026-06-26 23:00
+64 | grupos | G | Nueva Zelanda | Bélgica | 2026-06-26 23:00
+65 | grupos | H | Cabo Verde | Arabia Saudita | 2026-06-26 20:00
+66 | grupos | H | Uruguay | España | 2026-06-26 20:00
+67 | grupos | L | Panamá | Inglaterra | 2026-06-27 17:00
+68 | grupos | L | Croacia | Ghana | 2026-06-27 17:00
+69 | grupos | J | Argelia | Austria | 2026-06-27 22:00
+70 | grupos | J | Jordán | Argentina | 2026-06-27 22:00
+71 | grupos | K | Colombia | Portugal | 2026-06-27 19:30
+72 | grupos | K | RD Congo | Uzbekistán | 2026-06-27 19:30

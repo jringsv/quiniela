@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiniela Mundial 2026 ⚽</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/extra.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚽ Quiniela Mundial 2026</div>
+    <nav id="nav" class="nav hidden">
+      <button data-view="quiniela" class="tab active">Mi quiniela</button>
+      <button data-view="mundial" class="tab">Mundial (real)</button>
+      <button data-view="dashboard" class="tab">Posiciones</button>
+      <button data-view="admin" class="tab admin-only hidden">Admin</button>
+    </nav>
+    <div class="user-box">
+      <span id="userName" class="user-name"></span>
+      <button id="logoutBtn" class="btn small hidden">Salir</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- ===================== LOGIN ===================== -->
+    <section id="view-auth" class="view auth-view">
+      <div class="card auth-card">
+        <div class="auth-head">
+          <img class="auth-logo"
+               src="img/logo-mundial-2026.svg"
+               alt="Logo oficial Copa Mundial FIFA 2026" />
+          <h1>Quiniela Mundial 2026</h1>
+          <p class="muted auth-sub">Inicia sesión o crea tu cuenta para llenar tu quiniela.</p>
+        </div>
+
+        <div class="tabs-mini" role="tablist">
+          <button id="tabLogin" class="mini active" type="button">Iniciar sesión</button>
+          <button id="tabRegister" class="mini" type="button">Registrarme</button>
+        </div>
+
+        <form id="authForm" novalidate>
+          <label id="lblNombre" class="hidden field">Nombre para mostrar
+            <input type="text" id="authNombre" placeholder="Tu nombre" autocomplete="name" />
+          </label>
+          <label class="field">Correo
+            <input type="email" id="authEmail" placeholder="tucorreo@mail.com" autocomplete="email" required />
+          </label>
+          <label class="field">Contraseña
+            <div class="pass-wrap">
+              <input type="password" id="authPass" placeholder="••••••••" autocomplete="current-password" minlength="6" required />
+              <button type="button" id="togglePass" class="pass-toggle" aria-label="Mostrar u ocultar contraseña">👁</button>
+            </div>
+          </label>
+          <button type="submit" class="btn primary block" id="authSubmit">Entrar</button>
+        </form>
+        <p id="authMsg" class="msg" role="alert"></p>
+      </div>
+      <p class="auth-foot small">🇨🇦 🇲🇽 🇺🇸 &nbsp;Canadá · México · Estados Unidos 2026</p>
+    </section>
+
+    <!-- ===================== MI QUINIELA ===================== -->
+    <section id="view-quiniela" class="view hidden">
+      <div id="lockBanner" class="banner hidden"></div>
+
+      <div class="card">
+        <h2>1) Marcadores de la fase de grupos</h2>
+        <p class="muted">3 puntos por marcador exacto · 1 punto por acertar al ganador/empate.
+          Conforme llenas, se arman solas las tablas y las llaves. 👇</p>
+        <div id="partidosList" class="partidos"></div>
+      </div>
+
+      <div class="card">
+        <h2>📊 Tablas de grupo (según tus marcadores)</h2>
+        <p class="muted small">Clasifican los 2 primeros de cada grupo + los 8 mejores terceros.</p>
+        <div id="gruposLive" class="grupos-live"></div>
+        <div id="tercerosLive" class="terceros"></div>
+      </div>
+
+      <div class="card">
+        <h2>2) Tus llaves (elige al ganador de cada cruce)</h2>
+        <p class="muted small">Puntos por avance: 16avos 1 · 8vos 2 · 4tos 3 · semis 4 ·
+          tercero 5 · subcampeón 5 · campeón 7. Haz clic en el equipo que crees que avanza.</p>
+        <div id="bracketMount" class="bracket-wrap"></div>
+      </div>
+
+      <div class="saver">
+        <button id="saveAll" class="btn primary big">💾 Guardar mi quiniela</button>
+        <span id="saveMsg" class="msg"></span>
+      </div>
+    </section>
+
+    <!-- ===================== MUNDIAL (REAL) ===================== -->
+    <section id="view-mundial" class="view hidden">
+      <div class="card">
+        <h2>📊 Tablas de grupo reales <span class="live">● en vivo</span></h2>
+        <p class="muted small">Se actualizan cuando el admin carga resultados.</p>
+        <div id="gruposReal" class="grupos-live"></div>
+        <div id="tercerosReal" class="terceros"></div>
+      </div>
+      <div class="card">
+        <h2>🏆 Llaves reales</h2>
+        <div id="bracketReal" class="bracket-wrap"></div>
+      </div>
+    </section>
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <section id="view-dashboard" class="view hidden">
+      <div class="card">
+        <h2>🏆 Tabla de posiciones <span id="liveDot" class="live">● en vivo</span></h2>
+        <p class="muted">Se actualiza automáticamente al cargar nuevos resultados.</p>
+        <table class="leaderboard">
+          <thead>
+            <tr><th>#</th><th>Jugador</th><th>Marcadores</th><th>Fases</th><th>Posiciones</th><th>Total</th></tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+        <p class="muted small">Premios para los 3 primeros lugares 🥇🥈🥉</p>
+      </div>
+    </section>
+
+    <!-- ===================== ADMIN ===================== -->
+    <section id="view-admin" class="view hidden">
+      <div class="card">
+        <h2>Resultados reales — fase de grupos</h2>
+        <details>
+          <summary>➕ Agregar / importar partidos</summary>
+          <div class="admin-import">
+            <p class="muted small">Pega filas (una por línea):
+              <code>numero | fase | grupo | local | visitante | fecha(YYYY-MM-DD HH:mm)</code>
+            </p>
+            <textarea id="importBox" rows="6" placeholder="1 | grupos | A | México | Sudáfrica | 2026-06-11 15:00"></textarea>
+            <button id="importBtn" class="btn">Importar partidos</button>
+          </div>
+        </details>
+        <div id="adminPartidos" class="partidos admin"></div>
+      </div>
+
+      <div class="card">
+        <h2>Resultados reales — llaves</h2>
+        <p class="muted small">Las tablas y los cruces salen de los marcadores de arriba.
+          Marca al ganador real de cada eliminatoria y guarda.</p>
+        <div id="bracketAdmin" class="bracket-wrap"></div>
+        <button id="saveAdminBracket" class="btn primary">💾 Guardar llaves reales</button>
+        <span id="adminBracketMsg" class="msg"></span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot"><span id="footLock"></span></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/fixture-data.js"></script>
+  <script src="js/bracket.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+node_modules/
+*.log
+.vercel
+# OJO: js/config.js contiene solo la ANON KEY (pública y protegida por RLS),
+# por lo que es seguro subirla. Si prefieres no exponerla, ignórala:
+# js/config.js
