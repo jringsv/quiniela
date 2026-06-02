@@ -125,7 +125,10 @@ async function onLogin() {
       ({ data: prof } = await sb.from("profiles").select("*").eq("id", S.user.id).single());
     }
     S.profile = prof;
-    $("#userName").textContent = prof?.nombre || S.user.email;
+    // Mostramos solo el primer nombre, con saludo: "Hola, José".
+    // Si por alguna razón no hay nombre, caemos al correo.
+    const nombreMostrar = (prof?.nombre || S.user.email || "").trim().split(/\s+/)[0];
+    $("#userName").textContent = nombreMostrar ? "Hola, " + nombreMostrar : "";
     $("#logoutBtn").classList.remove("hidden");
     $("#nav").classList.remove("hidden");
     $$(".admin-only").forEach((e) => e.classList.toggle("hidden", !prof?.is_admin));
