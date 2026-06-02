@@ -12,10 +12,9 @@ window.QUINIELA_CONFIG = {
   // Reglas de puntaje (informativo / se muestran en la UI).
   // El cálculo REAL vive en la función get_leaderboard() de la base de datos.
   REGLAS: {
-    marcador_exacto: 3,
-    ganador_acertado: 1,
-    avance: { "16avos": 1, "8vos": 2, "4tos": 3, "semis": 4 },
-    posiciones: { campeon: 7, subcampeon: 5, tercero: 5 },
+    marcador_exacto: 3,    // marcador exacto con goles
+    ganador_acertado: 1,   // acertar el resultado (gane o empate)
+    // Las llaves (avance/posiciones) ya NO otorgan puntos: solo arman el cuadro.
   },
 
   // Cuántos equipos clasifican a cada fase (para validar la quiniela del usuario)

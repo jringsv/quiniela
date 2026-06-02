@@ -12,26 +12,25 @@ oficial FIFA de asignación de terceros) · vista "Mundial (real)" con el cuadro
 
 ## 🧮 Reglas de puntaje
 
+El puntaje se calcula **únicamente con los marcadores de los partidos**:
+
 | Acierto | Puntos |
 |---|---|
-| Marcador exacto | **3** |
-| Solo el ganador / empate | **1** |
-| Cada equipo que llega a **16avos** (Ronda de 32) | **1** |
-| Cada equipo que llega a **8vos** | **2** |
-| Cada equipo que llega a **4tos** | **3** |
-| Cada equipo que llega a **semis** | **4** |
-| Acertar el **tercer lugar** | **5** |
-| Acertar el **subcampeón** (2.º) | **5** |
-| Acertar el **campeón** | **7** |
+| Pronóstico exacto con goles (marcador) | **3** |
+| Pronóstico al partido (acertar gane o empate) | **1** |
+
+> Las **llaves** (avance de fases, campeón/subcampeón/tercero) se siguen llenando para
+> armar el cuadro de cada jugador, pero **ya no otorgan puntos**.
 
 > ⚑ **Partidos que aplican:** según las reglas nuevas, no todos los partidos otorgan los
 > puntos de marcador (3/1). En **Admin** cada partido tiene un check **"aplica"**; al
 > desmarcarlo, ese partido deja de sumar marcador (el resultado real **sí** sigue armando
 > las tablas de grupo y las llaves). Al jugador se le muestra la etiqueta *"no suma marcador"*.
 
-Ganan los **3 primeros lugares** de la tabla. Las quinielas se **bloquean el
-11/06/2026 a las 11:00 a.m. (hora El Salvador)**: a partir de ahí los jugadores ya no
-pueden modificar nada; solo el admin puede cargar resultados.
+Ganan los **3 primeros lugares** de la tabla. Cada **marcador se cierra 15 minutos antes
+de que empiece su partido**: a partir de ese momento ese pronóstico ya no se puede
+modificar. Cada partido cierra en su propio horario (no hay una fecha única de bloqueo).
+Solo el admin queda exceptuado y puede cargar resultados.
 
 ---
 
@@ -92,12 +91,10 @@ A–L, 48 equipos) con equipos, grupo y fecha reales.
 > `numero | fase | grupo | local | visitante | fecha`).
 
 #### ¿Y las eliminatorias (16avos, 8vos, etc.)?
-Como la quiniela **se cierra el 11/06 antes de que arranque el torneo**, todavía no se
-sabe qué equipos jugarán cada cruce, así que **no se predicen marcadores de eliminatorias**.
-Esas rondas se puntúan con las secciones **2) Equipos que avanzan por fase** y
-**3) Posiciones finales** (que es justo el esquema de puntos que definiste: 1/2/3/4 por
-fase y 7/5/5 por campeón/subcampeón/tercero). Los marcadores (3/1 pts) aplican a los 72
-partidos de grupos.
+Las llaves se llenan **antes** de que arranque el torneo, cuando todavía no se sabe qué
+equipos jugarán cada cruce, así que **no se predicen marcadores de eliminatorias**.
+Las llaves se llenan para armar el cuadro de cada jugador, pero **no otorgan puntos**: el
+puntaje sale solo de los marcadores (3/1 pts) de los partidos.
 
 ---
 
@@ -136,10 +133,14 @@ segura, sin exponer las predicciones individuales). Cuando el admin guarda un re
 Supabase Realtime avisa al navegador y la tabla se vuelve a calcular sola.
 
 ## 🔒 Cómo funciona el bloqueo
-La fecha está en la tabla `config` (`lock_at`). Las reglas **RLS** de la base de datos
-impiden que un jugador inserte/edite/borre predicciones después de esa fecha; solo el
-admin queda exceptuado. La UI además deshabilita los botones.
-Para cambiar la fecha:
+El cierre es **por partido**: cada marcador se bloquea **15 minutos antes** de la hora
+del juego (`partidos.fecha`). La función `partido_locked(id)` y las reglas **RLS** de la
+base de datos impiden que un jugador inserte/edite/borre el pronóstico de un partido ya
+cerrado; solo el admin queda exceptuado. La UI además deshabilita los inputs cerrados.
+
+Para mover la hora de cierre de un partido, basta con cambiar su fecha:
 ```sql
-update config set valor = '2026-06-11T11:00:00-06:00' where clave = 'lock_at';
+update partidos set fecha = '2026-06-11T13:00:00-06:00' where numero = 1;
 ```
+El margen de 15 min vive en `partido_locked()` (SQL) y en `LOCK_MIN` (en `js/app.js`).
+Las llaves (bracket) ya no otorgan puntos y no tienen cierre por tiempo.

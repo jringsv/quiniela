@@ -17,7 +17,7 @@ const S = {
   scores: {},              // predicción del usuario {numero:{gl,gv}}
   winners: {},             // bracket del usuario {matchNo:'a'|'b'}
   realWinners: {},         // bracket real (res_bracket)
-  lockAt: null, isLocked: false, authMode: "login",
+  authMode: "login",
 };
 
 const FASES_AVANCE = ["16avos", "8vos", "4tos", "semis"];
@@ -175,23 +175,31 @@ function showView(name) {
 }
 
 // ============================================================
-//  BLOQUEO POR FECHA
+//  BLOQUEO POR PARTIDO (cada marcador cierra 15 min antes del juego)
 // ============================================================
-async function cargarConfigLock() {
-  const { data } = await sb.from("config").select("valor").eq("clave", "lock_at").single();
-  S.lockAt = data ? new Date(data.valor) : null;
-  S.isLocked = S.lockAt ? Date.now() >= S.lockAt.getTime() : false;
-  const f = S.lockAt ? S.lockAt.toLocaleString("es-SV", { dateStyle: "long", timeStyle: "short", timeZone: "America/El_Salvador" }) : "—";
+const LOCK_MIN = 15;                       // minutos antes de cada partido
+function cargarConfigLock() {
   const b = $("#lockBanner");
-  if (S.isLocked && !S.profile?.is_admin) { b.className = "banner locked"; b.textContent = "🔒 Quinielas bloqueadas desde el " + f + ". Ya no se pueden modificar."; }
-  else if (S.isLocked) { b.className = "banner open"; b.textContent = "🔓 Bloqueo activo para jugadores. Como admin aún puedes editar."; }
-  else { b.className = "banner open"; b.textContent = "✏️ Quiniela abierta. Se bloquea el " + f + "."; }
-  b.classList.remove("hidden");
-  $("#footLock").textContent = "Bloqueo: " + f + " (hora El Salvador)";
+  if (b) {
+    b.className = "banner open";
+    b.textContent = "✏️ Cada marcador se cierra " + LOCK_MIN +
+      " minutos antes de que empiece su partido. Después ya no podrás modificarlo.";
+    b.classList.remove("hidden");
+  }
+  const fl = $("#footLock");
+  if (fl) fl.textContent = "Cada partido cierra " + LOCK_MIN + " min antes de empezar (hora El Salvador).";
 }
-// Para editar/guardar: ser admin, o estar APROBADO y que no haya pasado el bloqueo.
+// ¿Ya cerró este partido? (now >= hora_del_partido - 15 min). Sin fecha => abierto.
+function partidoBloqueado(p) {
+  if (!p || !p.fecha) return false;
+  return Date.now() >= new Date(p.fecha).getTime() - LOCK_MIN * 60000;
+}
+// Para participar (guardar): ser admin, o estar APROBADO. El cierre por tiempo
+// es por partido (ver partidoBloqueado / puedeEditarMarcador).
 const estaAprobado = () => !!(S.profile?.is_admin || S.profile?.aprobado);
-const puedeEditar = () => S.profile?.is_admin || (estaAprobado() && !S.isLocked);
+const puedeEditar = () => !!(S.profile?.is_admin || estaAprobado());
+// ¿Puede editar el marcador de ESTE partido ahora mismo?
+const puedeEditarMarcador = (p) => S.profile?.is_admin || (estaAprobado() && !partidoBloqueado(p));
 
 // ============================================================
 //  DATOS
@@ -247,19 +255,22 @@ function renderMarcadores() {
 }
 function filaMarcador(p) {
   const aplica = p.aplica_quiniela !== false;
-  const row = document.createElement("div"); row.className = "partido" + (aplica ? "" : " no-aplica");
+  const cerrado = partidoBloqueado(p) && !S.profile?.is_admin;
+  const row = document.createElement("div");
+  row.className = "partido" + (aplica ? "" : " no-aplica") + (cerrado ? " cerrado" : "");
   const s = S.scores[p.numero] || {};
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1). Tu pronóstico igual arma tus tablas y llaves.">no suma marcador</span>`;
+  const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
   row.innerHTML = `
     <span class="eq">${teamRow(p.equipo_local)}</span>
     <input type="number" min="0" max="99" data-n="${p.numero}" data-side="l" value="${s.gl ?? ""}">
     <span class="vs">vs</span>
     <input type="number" min="0" max="99" data-n="${p.numero}" data-side="v" value="${s.gv ?? ""}">
     <span class="eq v">${teamRow(p.equipo_visitante)}</span>
-    ${tag}
+    ${tag}${lockTag}
     <span class="fch">${fmtFecha(p.fecha)}</span>`;
   row.querySelectorAll("input").forEach((i) => {
-    i.disabled = !puedeEditar();
+    i.disabled = !puedeEditarMarcador(p);
     i.oninput = () => {
       const n = +i.dataset.n; S.scores[n] ||= {};
       S.scores[n][i.dataset.side === "l" ? "gl" : "gv"] = i.value === "" ? null : Math.max(0, Math.min(99, +i.value));
@@ -404,8 +415,10 @@ $("#saveAll").onclick = async () => {
   try {
     const pp = [];
     Object.entries(S.scores).forEach(([n, s]) => {
-      const id = numToId(+n);
-      if (id && s && s.gl != null && s.gv != null) pp.push({ user_id: S.user.id, partido_id: id, gol_local: s.gl, gol_visitante: s.gv });
+      const p = S.partidos.find((x) => x.numero === +n);
+      if (!p) return;
+      if (partidoBloqueado(p) && !S.profile?.is_admin) return;   // ese partido ya cerró: no se reenvía
+      if (s && s.gl != null && s.gv != null) pp.push({ user_id: S.user.id, partido_id: p.id, gol_local: s.gl, gol_visitante: s.gv });
     });
     if (pp.length) { const { error } = await sb.from("pred_partidos").upsert(pp, { onConflict: "user_id,partido_id" }); if (error) throw error; }
 
@@ -454,13 +467,13 @@ async function renderMundialReal() {
 async function cargarLeaderboard() {
   const { data, error } = await sb.rpc("get_leaderboard");
   const body = $("#leaderboardBody");
-  if (error) { body.innerHTML = `<tr><td colspan="6" class="muted">Error: ${error.message}</td></tr>`; return; }
-  if (!data?.length) { body.innerHTML = '<tr><td colspan="6" class="muted">Sin jugadores aún.</td></tr>'; return; }
+  if (error) { body.innerHTML = `<tr><td colspan="4" class="muted">Error: ${error.message}</td></tr>`; return; }
+  if (!data?.length) { body.innerHTML = '<tr><td colspan="4" class="muted">Sin jugadores aún.</td></tr>'; return; }
   body.innerHTML = data.map((r, i) => {
     const rank = i + 1, medalla = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
     const cls = rank <= 3 ? "rank" + rank : "", me = r.nombre === S.profile?.nombre ? "me" : "";
     return `<tr class="${me} ${cls}"><td>${medalla}</td><td>${r.nombre}</td>
-      <td>${r.pts_partidos}</td><td>${r.pts_fases}</td><td>${r.pts_posiciones}</td><td class="total">${r.total}</td></tr>`;
+      <td>${r.pts_partidos}</td><td class="total">${r.total}</td></tr>`;
   }).join("");
 }
 function iniciarRealtime() {
