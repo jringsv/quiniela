@@ -14,7 +14,11 @@
       "PowerShell(\"ping\")",
       "Bash(/c/Users/GERENTE-IT/AppData/Local/Programs/Python/Python314/python /c/Temp/dump.py)",
       "Bash(/c/Users/GERENTE-IT/AppData/Local/Programs/Python/Python314/python /c/Temp/gen_seed.py)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep -n \"function teamRow\\\\|const teamRow\\\\|function fmtFecha\\\\|const fmtFecha\\\\|^const \\\\$\\\\|function \\\\$\\(\" js/app.js)",
+      "Bash(node --check js/app.js)",
+      "Bash(node --check js/config.js)",
+      "Bash(node --check js/bracket.js)"
     ],
     "additionalDirectories": [
       "\\tmp"

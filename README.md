@@ -12,20 +12,27 @@ oficial FIFA de asignación de terceros) · vista "Mundial (real)" con el cuadro
 
 ## 🧮 Reglas de puntaje
 
-El puntaje se calcula **únicamente con los marcadores de los partidos**:
+El puntaje se calcula con los **marcadores de los partidos** (grupos **y** llaves por igual):
 
 | Acierto | Puntos |
 |---|---|
 | Pronóstico exacto con goles (marcador) | **3** |
 | Pronóstico al partido (acertar gane o empate) | **1** |
 
-> Las **llaves** (avance de fases, campeón/subcampeón/tercero) se siguen llenando para
-> armar el cuadro de cada jugador, pero **ya no otorgan puntos**.
+> 🎯 **Dos pronósticos por partido:** cada usuario puede dar **dos marcadores diferentes**
+> del mismo partido (Pronóstico 1 y Pronóstico 2) y **ambos suman**. El máximo por partido
+> es 3 + 1 = 4 (un exacto + un resultado). Los dos marcadores deben ser distintos entre sí.
 
-> ⚑ **Partidos que aplican:** según las reglas nuevas, no todos los partidos otorgan los
-> puntos de marcador (3/1). En **Admin** cada partido tiene un check **"aplica"**; al
-> desmarcarlo, ese partido deja de sumar marcador (el resultado real **sí** sigue armando
-> las tablas de grupo y las llaves). Al jugador se le muestra la etiqueta *"no suma marcador"*.
+> 🔑 **Las llaves puntúan como partidos normales:** las eliminatorias son partidos como
+> cualquier otro (misma regla 3/1). No hay un sistema de puntos aparte para fases o posiciones.
+
+> 👤 **Activación por partido:** el admin habilita, **partido por partido**, qué usuarios
+> participan. Un usuario solo ve y pronostica los partidos en los que fue activado. Por
+> defecto, al crear un partido **nadie** está activado.
+
+> ⚑ **Partidos que aplican:** en **Admin** cada partido tiene un check **"aplica"**; al
+> desmarcarlo, ese partido deja de otorgar puntos (3/1). Al jugador se le muestra la
+> etiqueta *"no suma marcador"*.
 
 Ganan los **3 primeros lugares** de la tabla. Cada **marcador se cierra 15 minutos antes
 de que empiece su partido**: a partir de ese momento ese pronóstico ya no se puede
@@ -41,8 +48,13 @@ Solo el admin queda exceptuado y puede cargar resultados.
 2. Cuando esté listo, ve a **SQL Editor → New query**.
 3. Ejecuta **en este orden** (cada uno: pegar contenido → **Run**):
    1. [`supabase/schema.sql`](supabase/schema.sql) — tablas, puntajes y seguridad.
-   2. [`supabase/migracion_bracket.sql`](supabase/migracion_bracket.sql) — guardado de las llaves.
+   2. [`supabase/migracion_bracket.sql`](supabase/migracion_bracket.sql) — cuadro real de llaves.
    3. [`supabase/seed_partidos.sql`](supabase/seed_partidos.sql) — calendario real de grupos.
+   4. [`supabase/migracion_aprobacion.sql`](supabase/migracion_aprobacion.sql) — autorización de usuarios.
+   5. [`supabase/migracion_solo_marcadores.sql`](supabase/migracion_solo_marcadores.sql) — puntaje solo por marcador (3/1).
+   6. [`supabase/migracion_lock_por_partido.sql`](supabase/migracion_lock_por_partido.sql) — cierre 15 min antes de cada partido.
+   7. [`supabase/migracion_borrar_usuarios.sql`](supabase/migracion_borrar_usuarios.sql) — gestión de usuarios (admin).
+   8. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
 
    > Si tu base **ya existía** antes de la bandera "aplica para quiniela", ejecuta además
    > [`supabase/migracion_aplica_quiniela.sql`](supabase/migracion_aplica_quiniela.sql)
@@ -91,10 +103,10 @@ A–L, 48 equipos) con equipos, grupo y fecha reales.
 > `numero | fase | grupo | local | visitante | fecha`).
 
 #### ¿Y las eliminatorias (16avos, 8vos, etc.)?
-Las llaves se llenan **antes** de que arranque el torneo, cuando todavía no se sabe qué
-equipos jugarán cada cruce, así que **no se predicen marcadores de eliminatorias**.
-Las llaves se llenan para armar el cuadro de cada jugador, pero **no otorgan puntos**: el
-puntaje sale solo de los marcadores (3/1 pts) de los partidos.
+Las llaves se pronostican **como partidos normales**: a medida que se conocen los cruces, el
+admin los importa (o los activa) y activa a los participantes; cada quien predice el marcador
+(3/1, dos pronósticos, ambos suman) igual que en la fase de grupos. La vista **Mundial (real)**
+sigue mostrando el cuadro verdadero del torneo a partir de los resultados que carga el admin.
 
 ---
 
@@ -143,4 +155,17 @@ Para mover la hora de cierre de un partido, basta con cambiar su fecha:
 update partidos set fecha = '2026-06-11T13:00:00-06:00' where numero = 1;
 ```
 El margen de 15 min vive en `partido_locked()` (SQL) y en `LOCK_MIN` (en `js/app.js`).
-Las llaves (bracket) ya no otorgan puntos y no tienen cierre por tiempo.
+Esto aplica a **todos** los partidos por igual (grupos y eliminatorias), ya que las llaves
+se pronostican como partidos normales.
+
+## 👤 Activación de participantes por partido
+Por defecto, al crear un partido **nadie** puede pronosticarlo. En **Admin → Resultados
+reales → cada partido** hay un desplegable **"👥 Participantes"** con la lista de usuarios
+aprobados; el admin marca quién participa en ese partido. La tabla `partido_usuario`
+(con RLS) guarda esas activaciones, y `pred_partidos` solo acepta el pronóstico de un
+usuario si está activado para ese partido (además de estar aprobado y no haber cerrado).
+
+## 🎯 Doble marcador
+`pred_partidos` tiene una columna `slot` (1 o 2): cada usuario puede guardar hasta dos
+marcadores **distintos** por partido. El puntaje (`get_leaderboard`) suma **ambas** filas,
+por lo que los dos pronósticos acumulan.

@@ -186,10 +186,28 @@ code{background:var(--bg2); padding:.1rem .35rem; border-radius:6px; font-size:.
 /* ---------- Footer ---------- */
 .foot{text-align:center; color:var(--muted); font-size:.78rem; padding:1.4rem 1rem 2.4rem}
 
-@media(max-width:560px){
+@media(max-width:640px){
+  main{margin:1rem auto; padding:0 .7rem}
+  .card{padding:1rem .9rem}
+  .topbar{flex-wrap:wrap; gap:.6rem; padding:.6rem .8rem}
   .brand{font-size:1rem}
-  .nav{order:3; flex-basis:100%; justify-content:center}
-  .leaderboard th:nth-child(3),.leaderboard td:nth-child(3),
-  .leaderboard th:nth-child(4),.leaderboard td:nth-child(4),
-  .leaderboard th:nth-child(5),.leaderboard td:nth-child(5){display:none}
+  /* Tabs: scroll horizontal en lugar de romper el layout */
+  .nav{order:3; flex-basis:100%; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+    justify-content:flex-start; padding-bottom:.2rem}
+  .tab{flex:0 0 auto; padding:.4rem .75rem; font-size:.85rem}
+  .user-box{margin-left:auto}
+  /* Leaderboard: 4 columnas caben; solo reducimos densidad */
+  .leaderboard th,.leaderboard td{padding:.5rem .25rem; font-size:.9rem}
+  .leaderboard td.total{font-size:1rem}
+  .leaderboard th{font-size:.66rem}
+  /* Dos pronósticos: cada uno ocupa toda la línea para dedo táctil */
+  .partido2-prons{gap:.5rem}
+  .pron-slot{flex:1 1 100%; justify-content:space-between}
+  .pron-slot input{width:54px; height:40px}
+  /* Admin: inputs y participantes apilados */
+  .part-list{grid-template-columns:1fr 1fr}
+}
+@media(max-width:420px){
+  .part-list{grid-template-columns:1fr}
+  input[type=number]{width:52px}
 }

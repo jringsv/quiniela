@@ -13,9 +13,9 @@ const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 
 const S = {
   user: null, profile: null,
-  partidos: [],            // partidos de grupos (de la BD)
-  scores: {},              // predicción del usuario {numero:{gl,gv}}
-  winners: {},             // bracket del usuario {matchNo:'a'|'b'}
+  partidos: [],            // todos los partidos (de la BD)
+  scores: {},              // predicción del usuario {numero:{1:{gl,gv}, 2:{gl,gv}}}  (dos slots)
+  activos: new Set(),      // partido_id donde el admin activó a este usuario
   realWinners: {},         // bracket real (res_bracket)
   authMode: "login",
 };
@@ -36,6 +36,7 @@ function teamRow(team) {
   return `<span class="team">${flagImg(team)}<span class="nm">${team}</span></span>`;
 }
 function teamTxt(team) { return team ? teamRow(team) : '<span class="muted">—</span>'; }
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function fmtFecha(iso) {
   if (!iso) return "";
   // Forzamos zona horaria de El Salvador (GMT-6, sin horario de verano) para
@@ -209,14 +210,19 @@ async function cargarPartidos() {
   S.partidos = data || [];
 }
 async function cargarMiQuiniela() {
-  S.scores = {}; S.winners = {};
-  const [{ data: preds }, { data: brk }] = await Promise.all([
+  S.scores = {}; S.activos = new Set();
+  const [{ data: preds }, { data: act }] = await Promise.all([
     sb.from("pred_partidos").select("*").eq("user_id", S.user.id),
-    sb.from("pred_bracket").select("*").eq("user_id", S.user.id),
+    sb.from("partido_usuario").select("partido_id").eq("user_id", S.user.id),
   ]);
-  (preds || []).forEach((p) => { const n = mapIdToNum(p.partido_id); S.scores[n] = { gl: p.gol_local, gv: p.gol_visitante }; });
-  (brk || []).forEach((b) => (S.winners[b.match_no] = b.ganador));
+  (preds || []).forEach((p) => {
+    const n = mapIdToNum(p.partido_id);
+    (S.scores[n] ||= {})[p.slot || 1] = { gl: p.gol_local, gv: p.gol_visitante };
+  });
+  (act || []).forEach((a) => S.activos.add(a.partido_id));
 }
+// ¿Está el usuario activado por el admin para pronosticar este partido?
+const estaActivo = (p) => S.profile?.is_admin || (!!p && S.activos.has(p.id));
 function mapIdToNum(id) { const p = S.partidos.find((x) => x.id === id); return p ? p.numero : id; }
 function numToId(num) { const p = S.partidos.find((x) => x.numero === num); return p ? p.id : null; }
 
@@ -226,9 +232,19 @@ function numToId(num) { const p = S.partidos.find((x) => x.numero === num); retu
 function renderQuiniela() {
   renderApprovalBanner();
   renderMarcadores();
-  refreshLive();
   $("#saveAll").disabled = !puedeEditar();
 }
+// Partidos en los que el usuario fue activado por el admin (admin ve todos),
+// ordenados por fecha (los sin fecha al final) y luego por número.
+function partidosActivos() {
+  return S.partidos.filter((p) => estaActivo(p)).slice().sort((a, b) => {
+    const fa = a.fecha ? new Date(a.fecha).getTime() : Infinity;
+    const fb = b.fecha ? new Date(b.fecha).getTime() : Infinity;
+    return fa - fb || (a.numero || 0) - (b.numero || 0);
+  });
+}
+const FASES_LABEL = (window.QUINIELA_CONFIG && window.QUINIELA_CONFIG.FASES_LABEL) || {};
+const fmtFase = (f) => FASES_LABEL[f] || f || "";
 // Aviso para usuarios que aún no han sido autorizados por el admin.
 function renderApprovalBanner() {
   const b = $("#approvalBanner");
@@ -244,47 +260,53 @@ function renderApprovalBanner() {
 }
 function renderMarcadores() {
   const cont = $("#partidosList"); cont.innerHTML = "";
-  const ms = grupoMatches();
-  if (!ms.length) { cont.innerHTML = '<p class="muted">Aún no hay partidos cargados (el admin debe importarlos).</p>'; return; }
-  const grupos = {};
-  ms.forEach((p) => { (grupos["Grupo " + (p.grupo || "?")] ||= []).push(p); });
-  for (const [titulo, lista] of Object.entries(grupos)) {
-    const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = titulo; cont.appendChild(h);
-    lista.forEach((p) => cont.appendChild(filaMarcador(p)));
+  if (!S.partidos.length) {
+    cont.innerHTML = '<p class="muted">Aún no hay partidos cargados (el admin debe importarlos).</p>'; return;
   }
+  const ms = partidosActivos();
+  if (!ms.length) {
+    cont.innerHTML = '<p class="muted">Aún no estás habilitado en ningún partido. El administrador debe activarte para que puedas pronosticar.</p>';
+    return;
+  }
+  ms.forEach((p) => cont.appendChild(filaMarcador(p)));
 }
 function filaMarcador(p) {
   const aplica = p.aplica_quiniela !== false;
   const cerrado = partidoBloqueado(p) && !S.profile?.is_admin;
+  const editable = puedeEditarMarcador(p) && estaActivo(p);
   const row = document.createElement("div");
-  row.className = "partido" + (aplica ? "" : " no-aplica") + (cerrado ? " cerrado" : "");
-  const s = S.scores[p.numero] || {};
-  const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1). Tu pronóstico igual arma tus tablas y llaves.">no suma marcador</span>`;
+  row.className = "partido2" + (aplica ? "" : " no-aplica") + (cerrado ? " cerrado" : "");
+  const sc = S.scores[p.numero] || {};
+  const ctx = (p.grupo ? "Gpo " + p.grupo : fmtFase(p.fase)) + " · " + fmtFecha(p.fecha);
+  const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
   const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
+  const slotInputs = (slot) => {
+    const s = sc[slot] || {};
+    return `<div class="pron-slot">
+      <span class="pron-label">Pronóstico ${slot}</span>
+      <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="l" value="${s.gl ?? ""}">
+      <span class="vs">-</span>
+      <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="v" value="${s.gv ?? ""}">
+    </div>`;
+  };
   row.innerHTML = `
-    <span class="eq">${teamRow(p.equipo_local)}</span>
-    <input type="number" min="0" max="99" data-n="${p.numero}" data-side="l" value="${s.gl ?? ""}">
-    <span class="vs">vs</span>
-    <input type="number" min="0" max="99" data-n="${p.numero}" data-side="v" value="${s.gv ?? ""}">
-    <span class="eq v">${teamRow(p.equipo_visitante)}</span>
-    ${tag}${lockTag}
-    <span class="fch">${fmtFecha(p.fecha)}</span>`;
+    <div class="partido2-head">
+      <span class="eq">${teamRow(p.equipo_local)}</span>
+      <span class="vs">vs</span>
+      <span class="eq v">${teamRow(p.equipo_visitante)}</span>
+      ${tag}${lockTag}
+    </div>
+    <div class="partido2-prons">${slotInputs(1)}${slotInputs(2)}</div>
+    <span class="fch">${ctx}</span>`;
   row.querySelectorAll("input").forEach((i) => {
-    i.disabled = !puedeEditarMarcador(p);
+    i.disabled = !editable;
     i.oninput = () => {
-      const n = +i.dataset.n; S.scores[n] ||= {};
-      S.scores[n][i.dataset.side === "l" ? "gl" : "gv"] = i.value === "" ? null : Math.max(0, Math.min(99, +i.value));
-      refreshLive();
+      const n = +i.dataset.n, slot = +i.dataset.slot;
+      ((S.scores[n] ||= {})[slot] ||= {});
+      S.scores[n][slot][i.dataset.side === "l" ? "gl" : "gv"] = i.value === "" ? null : Math.max(0, Math.min(99, +i.value));
     };
   });
   return row;
-}
-function refreshLive() {
-  const res = Bracket.resolve(grupoMatches(), S.scores, S.winners);
-  renderGroups($("#gruposLive"), $("#tercerosLive"), res.groups, res.thirds);
-  renderBracket($("#bracketMount"), res, S.winners, puedeEditar(), (n, side) => {
-    S.winners[n] = side; refreshLive();
-  });
 }
 
 // ============================================================
@@ -413,22 +435,33 @@ $("#saveAll").onclick = async () => {
   if (!puedeEditar()) return;
   const btn = $("#saveAll"); btn.disabled = true;
   try {
-    const pp = [];
-    Object.entries(S.scores).forEach(([n, s]) => {
+    const ids = [];   // partidos editables que se reescriben
+    const pp = [];     // filas a insertar (una por slot lleno)
+    let dup = false;
+    Object.entries(S.scores).forEach(([n, slots]) => {
       const p = S.partidos.find((x) => x.numero === +n);
-      if (!p) return;
-      if (partidoBloqueado(p) && !S.profile?.is_admin) return;   // ese partido ya cerró: no se reenvía
-      if (s && s.gl != null && s.gv != null) pp.push({ user_id: S.user.id, partido_id: p.id, gol_local: s.gl, gol_visitante: s.gv });
+      if (!p || !estaActivo(p)) return;
+      if (partidoBloqueado(p) && !S.profile?.is_admin) return;   // ya cerró: no se toca
+      ids.push(p.id);
+      const filled = {};
+      [1, 2].forEach((slot) => {
+        const s = slots && slots[slot];
+        if (s && s.gl != null && s.gv != null) filled[slot] = { gl: s.gl, gv: s.gv };
+      });
+      // Los dos marcadores de un mismo partido deben ser diferentes.
+      if (filled[1] && filled[2] && filled[1].gl === filled[2].gl && filled[1].gv === filled[2].gv) dup = true;
+      Object.entries(filled).forEach(([slot, s]) =>
+        pp.push({ user_id: S.user.id, partido_id: p.id, slot: +slot, gol_local: s.gl, gol_visitante: s.gv }));
     });
-    if (pp.length) { const { error } = await sb.from("pred_partidos").upsert(pp, { onConflict: "user_id,partido_id" }); if (error) throw error; }
+    if (dup) { msg($("#saveMsg"), "Los dos pronósticos de un mismo partido deben ser diferentes.", false); return; }
 
-    await sb.from("pred_bracket").delete().eq("user_id", S.user.id);
-    const br = Object.entries(S.winners).filter(([, v]) => v === "a" || v === "b")
-      .map(([n, v]) => ({ user_id: S.user.id, match_no: +n, ganador: v }));
-    if (br.length) { const { error } = await sb.from("pred_bracket").insert(br); if (error) throw error; }
-
-    const res = Bracket.resolve(grupoMatches(), S.scores, S.winners);
-    await guardarDerivados("pred_avance", "pred_posicion", res, S.user.id);
+    // Reescribir solo los partidos editables: borrar lo previo y reinsertar
+    // (así también se eliminan los slots que el usuario dejó vacíos).
+    if (ids.length) {
+      const { error: delErr } = await sb.from("pred_partidos").delete().eq("user_id", S.user.id).in("partido_id", ids);
+      if (delErr) throw delErr;
+    }
+    if (pp.length) { const { error } = await sb.from("pred_partidos").insert(pp); if (error) throw error; }
     msg($("#saveMsg"), "✅ Quiniela guardada.", true);
   } catch (e) { msg($("#saveMsg"), "Error: " + e.message, false); }
   finally { btn.disabled = !puedeEditar(); }
@@ -498,10 +531,30 @@ function iniciarRealtime() {
 async function renderAdmin() {
   if (!S.profile?.is_admin) return;
   await renderAdminUsuarios();
+  await cargarAdminActivacion();
   renderAdminPartidos();
   const { data: rb } = await sb.from("res_bracket").select("*");
   S.realWinners = {}; (rb || []).forEach((r) => (S.realWinners[r.match_no] = r.ganador));
   refreshAdminBracket();
+}
+// Carga usuarios elegibles (aprobados/admin) y el mapa de activaciones por partido.
+async function cargarAdminActivacion() {
+  const [{ data: us }, { data: pu }] = await Promise.all([
+    sb.rpc("admin_list_users"),
+    sb.from("partido_usuario").select("partido_id,user_id"),
+  ]);
+  S.adminUsers = (us || []).filter((u) => u.aprobado || u.is_admin);
+  S.activByPartido = {};
+  (pu || []).forEach((r) => { (S.activByPartido[r.partido_id] ||= new Set()).add(r.user_id); });
+}
+async function toggleParticipante(pid, uid, on) {
+  let error;
+  if (on) ({ error } = await sb.from("partido_usuario").insert({ partido_id: pid, user_id: uid }));
+  else ({ error } = await sb.from("partido_usuario").delete().eq("partido_id", pid).eq("user_id", uid));
+  if (error) { alert("Error: " + error.message); return; }
+  (S.activByPartido[pid] ||= new Set());
+  if (on) S.activByPartido[pid].add(uid); else S.activByPartido[pid].delete(uid);
+  const cnt = document.querySelector(`[data-count="${pid}"]`); if (cnt) cnt.textContent = S.activByPartido[pid].size;
 }
 
 // ---------- Admin: aprobar usuarios ----------
@@ -590,26 +643,38 @@ function refreshAdminBracket() {
 }
 function renderAdminPartidos() {
   const cont = $("#adminPartidos"); cont.innerHTML = "";
-  const ms = grupoMatches();
+  const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
   if (!ms.length) { cont.innerHTML = '<p class="muted">Sin partidos. Usa "Agregar / importar".</p>'; return; }
   ms.forEach((p) => {
     const aplica = p.aplica_quiniela !== false;   // por defecto aplica
-    const row = document.createElement("div"); row.className = "partido" + (aplica ? "" : " no-aplica");
+    const activos = (S.activByPartido && S.activByPartido[p.id]) || new Set();
+    const ctx = (p.grupo ? "Gpo " + p.grupo : fmtFase(p.fase));
+    const usersHtml = (S.adminUsers || []).length
+      ? S.adminUsers.map((u) => `<label class="part-chk"><input type="checkbox" data-act-p="${p.id}" data-act-u="${u.id}" ${activos.has(u.id) ? "checked" : ""}> ${esc(u.nombre || u.email || "—")}</label>`).join("")
+      : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
+    const row = document.createElement("div"); row.className = "admin-partido" + (aplica ? "" : " no-aplica");
     row.innerHTML = `
-      <span class="eq">${teamRow(p.equipo_local)}</span>
-      <input type="number" min="0" max="99" data-rid="${p.id}" data-side="l" value="${p.gol_local ?? ""}">
-      <span class="vs">vs</span>
-      <input type="number" min="0" max="99" data-rid="${p.id}" data-side="v" value="${p.gol_visitante ?? ""}">
-      <span class="eq v">${teamRow(p.equipo_visitante)}</span>
-      <button class="btn small" data-save="${p.id}">Guardar</button>
-      <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos de marcador (3/1).">
-        <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
-      </label>
-      <span class="fch">${p.grupo ? "Gpo " + p.grupo : ""} · ${fmtFecha(p.fecha)}</span>`;
+      <div class="admin-partido-main">
+        <span class="eq">${teamRow(p.equipo_local)}</span>
+        <input type="number" min="0" max="99" data-rid="${p.id}" data-side="l" value="${p.gol_local ?? ""}">
+        <span class="vs">vs</span>
+        <input type="number" min="0" max="99" data-rid="${p.id}" data-side="v" value="${p.gol_visitante ?? ""}">
+        <span class="eq v">${teamRow(p.equipo_visitante)}</span>
+        <button class="btn small" data-save="${p.id}">Guardar</button>
+        <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos (3/1).">
+          <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
+        </label>
+        <span class="fch">${ctx} · ${fmtFecha(p.fecha)}</span>
+      </div>
+      <details class="part-box">
+        <summary>👥 Participantes (<span data-count="${p.id}">${activos.size}</span>)</summary>
+        <div class="part-list">${usersHtml}</div>
+      </details>`;
     cont.appendChild(row);
   });
   cont.querySelectorAll("[data-save]").forEach((b) => (b.onclick = () => guardarResultado(b.dataset.save)));
   cont.querySelectorAll("[data-aplica]").forEach((c) => (c.onchange = () => guardarAplica(c.dataset.aplica, c.checked)));
+  cont.querySelectorAll("[data-act-p]").forEach((c) => (c.onchange = () => toggleParticipante(+c.dataset.actP, c.dataset.actU, c.checked)));
 }
 async function guardarAplica(id, aplica) {
   const { error } = await sb.from("partidos").update({ aplica_quiniela: aplica }).eq("id", +id);
