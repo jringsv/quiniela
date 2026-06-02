@@ -237,7 +237,6 @@ function numToId(num) { const p = S.partidos.find((x) => x.numero === num); retu
 function renderQuiniela() {
   renderApprovalBanner();
   renderMarcadores();
-  $("#saveAll").disabled = !puedeEditar();
 }
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
 // ordenados por fecha (los sin fecha al final) y luego por número.
@@ -289,7 +288,7 @@ function renderMarcadores() {
 function filaMarcador(p) {
   const aplica = p.aplica_quiniela !== false;
   const cerrado = partidoBloqueado(p) && !S.profile?.is_admin;
-  const editable = puedeEditarMarcador(p) && estaActivo(p);
+  const editable = puedeEditarMarcador(p) && estaActivo(p);   // editable hasta 15 min antes
   const row = document.createElement("div");
   row.className = "partido2" + (aplica ? "" : " no-aplica") + (cerrado ? " cerrado" : "");
   const sc = S.scores[p.numero] || {};
@@ -305,6 +304,12 @@ function filaMarcador(p) {
       <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="v" value="${s.gv ?? ""}">
     </div>`;
   };
+  // Pie: botón de guardar (mientras sea editable); si cerró, solo la fecha.
+  const acciones = editable
+    ? `<button class="btn small primary pron-save">💾 Guardar partido</button>
+       <span class="msg pron-msg"></span>
+       <span class="fch">${ctx}</span>`
+    : `<span class="fch">${ctx}</span>`;
   row.innerHTML = `
     <div class="partido2-head">
       <span class="eq">${teamRow(p.equipo_local)}</span>
@@ -313,7 +318,7 @@ function filaMarcador(p) {
       ${tag}${lockTag}
     </div>
     <div class="partido2-prons">${slotInputs(1)}${slotInputs(2)}</div>
-    <span class="fch">${ctx}</span>`;
+    <div class="pron-actions">${acciones}</div>`;
   row.querySelectorAll("input").forEach((i) => {
     i.disabled = !editable;
     i.oninput = () => {
@@ -322,8 +327,37 @@ function filaMarcador(p) {
       S.scores[n][slot][i.dataset.side === "l" ? "gl" : "gv"] = i.value === "" ? null : Math.max(0, Math.min(99, +i.value));
     };
   });
+  const saveBtn = row.querySelector(".pron-save");
+  if (saveBtn) saveBtn.onclick = () => guardarPartido(p, saveBtn, row.querySelector(".pron-msg"));
   return row;
 }
+// Guarda los pronósticos de UN solo partido. Se puede re-guardar (editar)
+// mientras el partido no haya cerrado (15 min antes de empezar).
+async function guardarPartido(p, btn, msgEl) {
+  if (!editableMarcadorAhora(p)) return;
+  const slots = S.scores[p.numero] || {};
+  const filled = {};
+  [1, 2].forEach((slot) => {
+    const s = slots[slot];
+    if (s && s.gl != null && s.gv != null) filled[slot] = { gl: s.gl, gv: s.gv };
+  });
+  if (filled[1] && filled[2] && filled[1].gl === filled[2].gl && filled[1].gv === filled[2].gv) {
+    msg(msgEl, "Los dos pronósticos deben ser diferentes.", false); return;
+  }
+  btn.disabled = true;
+  try {
+    // Reescribe este partido: borra lo previo (incluye slots vaciados) e inserta.
+    const { error: delErr } = await sb.from("pred_partidos").delete().eq("user_id", S.user.id).eq("partido_id", p.id);
+    if (delErr) throw delErr;
+    const rows = Object.entries(filled).map(([slot, s]) =>
+      ({ user_id: S.user.id, partido_id: p.id, slot: +slot, gol_local: s.gl, gol_visitante: s.gv }));
+    if (rows.length) { const { error } = await sb.from("pred_partidos").insert(rows); if (error) throw error; }
+    msg(msgEl, rows.length ? "✅ Guardado." : "Pronóstico borrado.", true);
+  } catch (e) { msg(msgEl, "Error: " + e.message, false); }
+  finally { btn.disabled = !editableMarcadorAhora(p); }
+}
+// ¿El usuario puede guardar este marcador ahora? (aprobado/admin + activado + no cerrado)
+const editableMarcadorAhora = (p) => puedeEditar() && puedeEditarMarcador(p) && estaActivo(p);
 
 // ============================================================
 //  TABLAS DE GRUPO + TERCEROS
@@ -443,45 +477,6 @@ function renderBracket(mount, res, winners, editable, onPick) {
       (el.onclick = () => onPick(+el.dataset.n, el.dataset.side)));
   }
 }
-
-// ============================================================
-//  GUARDAR MI QUINIELA
-// ============================================================
-$("#saveAll").onclick = async () => {
-  if (!puedeEditar()) return;
-  const btn = $("#saveAll"); btn.disabled = true;
-  try {
-    const ids = [];   // partidos editables que se reescriben
-    const pp = [];     // filas a insertar (una por slot lleno)
-    let dup = false;
-    Object.entries(S.scores).forEach(([n, slots]) => {
-      const p = S.partidos.find((x) => x.numero === +n);
-      if (!p || !estaActivo(p)) return;
-      if (partidoBloqueado(p) && !S.profile?.is_admin) return;   // ya cerró: no se toca
-      ids.push(p.id);
-      const filled = {};
-      [1, 2].forEach((slot) => {
-        const s = slots && slots[slot];
-        if (s && s.gl != null && s.gv != null) filled[slot] = { gl: s.gl, gv: s.gv };
-      });
-      // Los dos marcadores de un mismo partido deben ser diferentes.
-      if (filled[1] && filled[2] && filled[1].gl === filled[2].gl && filled[1].gv === filled[2].gv) dup = true;
-      Object.entries(filled).forEach(([slot, s]) =>
-        pp.push({ user_id: S.user.id, partido_id: p.id, slot: +slot, gol_local: s.gl, gol_visitante: s.gv }));
-    });
-    if (dup) { msg($("#saveMsg"), "Los dos pronósticos de un mismo partido deben ser diferentes.", false); return; }
-
-    // Reescribir solo los partidos editables: borrar lo previo y reinsertar
-    // (así también se eliminan los slots que el usuario dejó vacíos).
-    if (ids.length) {
-      const { error: delErr } = await sb.from("pred_partidos").delete().eq("user_id", S.user.id).in("partido_id", ids);
-      if (delErr) throw delErr;
-    }
-    if (pp.length) { const { error } = await sb.from("pred_partidos").insert(pp); if (error) throw error; }
-    msg($("#saveMsg"), "✅ Quiniela guardada.", true);
-  } catch (e) { msg($("#saveMsg"), "Error: " + e.message, false); }
-  finally { btn.disabled = !puedeEditar(); }
-};
 
 async function guardarDerivados(tablaAvance, tablaPos, res, userId) {
   const avRows = [];

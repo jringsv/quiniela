@@ -23,6 +23,10 @@ El puntaje se calcula con los **marcadores de los partidos** (grupos **y** llave
 > del mismo partido (Pronóstico 1 y Pronóstico 2) y **ambos suman**. El máximo por partido
 > es 3 + 1 = 4 (un exacto + un resultado). Los dos marcadores deben ser distintos entre sí.
 
+> 💾 **Guardado por partido:** cada partido se guarda (y se edita) por separado, así puedes
+> llenar poco a poco. Se puede **modificar hasta 15 minutos antes** de que empiece el partido;
+> después se cierra (no hay bloqueo "al guardar", solo el cierre por tiempo).
+
 > 🔑 **Las llaves puntúan como partidos normales:** las eliminatorias son partidos como
 > cualquier otro (misma regla 3/1). No hay un sistema de puntos aparte para fases o posiciones.
 
@@ -56,6 +60,10 @@ Solo el admin queda exceptuado y puede cargar resultados.
    7. [`supabase/migracion_lock_por_partido.sql`](supabase/migracion_lock_por_partido.sql) — cierre 15 min antes de cada partido.
    8. [`supabase/migracion_borrar_usuarios.sql`](supabase/migracion_borrar_usuarios.sql) — gestión de usuarios (admin).
    9. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
+
+   > Nota: si en algún momento corriste `migracion_pred_inmutable.sql` (descartada), ejecuta
+   > [`supabase/migracion_pred_editable.sql`](supabase/migracion_pred_editable.sql) para volver a
+   > permitir editar el pronóstico hasta el cierre por tiempo.
 
    > Si tu base **ya existía** antes de la bandera "aplica para quiniela", ejecuta además
    > [`supabase/migracion_aplica_quiniela.sql`](supabase/migracion_aplica_quiniela.sql)
