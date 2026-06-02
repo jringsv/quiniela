@@ -18,7 +18,17 @@
       "Bash(grep -n \"function teamRow\\\\|const teamRow\\\\|function fmtFecha\\\\|const fmtFecha\\\\|^const \\\\$\\\\|function \\\\$\\(\" js/app.js)",
       "Bash(node --check js/app.js)",
       "Bash(node --check js/config.js)",
-      "Bash(node --check js/bracket.js)"
+      "Bash(node --check js/bracket.js)",
+      "Bash(node -e \"try{require.resolve\\('playwright'\\);console.log\\('playwright OK'\\)}catch\\(e\\){console.log\\('no playwright'\\)}\")",
+      "Bash(node -e \"try{require.resolve\\('puppeteer'\\);console.log\\('puppeteer OK'\\)}catch\\(e\\){console.log\\('no puppeteer'\\)}\")",
+      "Bash(where chrome *)",
+      "Bash(where msedge *)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1200,520 --screenshot=C:/Temp/desktop.png file:///C:/Temp/quiniela_preview.html)",
+      "Bash(echo \"d=$?\")",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,640 --screenshot=C:/Temp/mobile.png file:///C:/Temp/quiniela_preview.html)",
+      "Bash(echo \"m=$?\")",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1200,540 --screenshot=C:/Temp/desktop2.png file:///C:/Temp/quiniela_preview.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,660 --screenshot=C:/Temp/mobile2.png file:///C:/Temp/quiniela_preview.html)"
     ],
     "additionalDirectories": [
       "\\tmp"
