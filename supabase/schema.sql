@@ -25,6 +25,7 @@ create table if not exists profiles (
   id         uuid primary key references auth.users(id) on delete cascade,
   nombre     text not null,
   is_admin   boolean not null default false,
+  aprobado   boolean not null default false,   -- el admin debe autorizar antes de poder jugar
   created_at timestamptz not null default now()
 );
 
@@ -106,6 +107,23 @@ create or replace function is_admin(uid uuid) returns boolean
   select coalesce((select is_admin from profiles where id = uid), false)
 $$;
 
+create or replace function is_approved(uid uuid) returns boolean
+  language sql stable security definer set search_path = public as $$
+  select coalesce((select aprobado or is_admin from profiles where id = uid), false)
+$$;
+
+-- Impide que un usuario normal se auto-apruebe o se vuelva admin:
+-- solo un admin puede cambiar 'is_admin' o 'aprobado'.
+create or replace function protect_profile_fields() returns trigger
+  language plpgsql security definer set search_path = public as $$
+begin
+  if not is_admin(auth.uid()) then
+    new.is_admin := old.is_admin;
+    new.aprobado := old.aprobado;
+  end if;
+  return new;
+end $$;
+
 -- ============================================================
 --  TABLA DE POSICIONES (calcula TODOS los puntos de forma segura)
 --  Se llama desde el frontend con: supabase.rpc('get_leaderboard')
@@ -168,6 +186,7 @@ language sql stable security definer set search_path = public as $$
   left join mp   on mp.user_id   = pr.id
   left join fp   on fp.user_id   = pr.id
   left join posp on posp.user_id = pr.id
+  where pr.aprobado or pr.is_admin   -- solo usuarios autorizados aparecen en la tabla
   order by total desc, pr.nombre asc;
 $$;
 
@@ -187,9 +206,19 @@ alter table resultado_posicion  enable row level security;
 drop policy if exists "perfiles lectura"      on profiles;
 drop policy if exists "perfil propio insert"  on profiles;
 drop policy if exists "perfil propio update"  on profiles;
+drop policy if exists "perfil admin update"   on profiles;
 create policy "perfiles lectura"     on profiles for select using (true);
 create policy "perfil propio insert" on profiles for insert with check (auth.uid() = id);
+-- El usuario puede editar su propia fila (el trigger protege is_admin/aprobado);
+-- el admin puede editar cualquier fila para aprobar usuarios.
 create policy "perfil propio update" on profiles for update using (auth.uid() = id);
+create policy "perfil admin update"  on profiles for update
+  using (is_admin(auth.uid())) with check (is_admin(auth.uid()));
+
+-- Trigger que congela is_admin/aprobado para quien no es admin.
+drop trigger if exists trg_protect_profile on profiles;
+create trigger trg_protect_profile before update on profiles
+  for each row execute function protect_profile_fields();
 
 -- ---------- CONFIG ----------
 drop policy if exists "config lectura" on config;
@@ -213,12 +242,12 @@ drop policy if exists "pp delete" on pred_partidos;
 create policy "pp select" on pred_partidos for select
   using (auth.uid() = user_id or is_admin(auth.uid()));
 create policy "pp insert" on pred_partidos for insert
-  with check (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  with check (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 create policy "pp update" on pred_partidos for update
   using (auth.uid() = user_id)
-  with check (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  with check (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 create policy "pp delete" on pred_partidos for delete
-  using (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  using (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 
 -- ---------- PRED_AVANCE ----------
 drop policy if exists "pa select" on pred_avance;
@@ -227,9 +256,9 @@ drop policy if exists "pa delete" on pred_avance;
 create policy "pa select" on pred_avance for select
   using (auth.uid() = user_id or is_admin(auth.uid()));
 create policy "pa insert" on pred_avance for insert
-  with check (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  with check (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 create policy "pa delete" on pred_avance for delete
-  using (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  using (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 
 -- ---------- PRED_POSICION ----------
 drop policy if exists "px select" on pred_posicion;
@@ -239,12 +268,12 @@ drop policy if exists "px delete" on pred_posicion;
 create policy "px select" on pred_posicion for select
   using (auth.uid() = user_id or is_admin(auth.uid()));
 create policy "px insert" on pred_posicion for insert
-  with check (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  with check (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 create policy "px update" on pred_posicion for update
   using (auth.uid() = user_id)
-  with check (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  with check (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 create policy "px delete" on pred_posicion for delete
-  using (auth.uid() = user_id and (is_admin(auth.uid()) or not locked()));
+  using (auth.uid() = user_id and (is_admin(auth.uid()) or (is_approved(auth.uid()) and not locked())));
 
 -- ---------- RESULTADOS (lectura pública, escritura admin) ----------
 drop policy if exists "ra lectura" on resultado_avance;

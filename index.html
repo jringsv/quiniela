@@ -61,6 +61,7 @@
 
     <!-- ===================== MI QUINIELA ===================== -->
     <section id="view-quiniela" class="view hidden">
+      <div id="approvalBanner" class="banner hidden"></div>
       <div id="lockBanner" class="banner hidden"></div>
 
       <div class="card">
@@ -121,6 +122,13 @@
 
     <!-- ===================== ADMIN ===================== -->
     <section id="view-admin" class="view hidden">
+      <div class="card">
+        <h2>👥 Usuarios registrados</h2>
+        <p class="muted small">Autoriza a cada persona para que pueda guardar su quiniela.
+          Los no autorizados pueden ver, pero no participan ni aparecen en la tabla.</p>
+        <div id="adminUsuarios" class="usuarios-admin"></div>
+      </div>
+
       <div class="card">
         <h2>Resultados reales — fase de grupos</h2>
         <details>

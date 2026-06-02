@@ -183,7 +183,9 @@ async function cargarConfigLock() {
   b.classList.remove("hidden");
   $("#footLock").textContent = "Bloqueo: " + f + " (hora El Salvador)";
 }
-const puedeEditar = () => S.profile?.is_admin || !S.isLocked;
+// Para editar/guardar: ser admin, o estar APROBADO y que no haya pasado el bloqueo.
+const estaAprobado = () => !!(S.profile?.is_admin || S.profile?.aprobado);
+const puedeEditar = () => S.profile?.is_admin || (estaAprobado() && !S.isLocked);
 
 // ============================================================
 //  DATOS
@@ -208,9 +210,23 @@ function numToId(num) { const p = S.partidos.find((x) => x.numero === num); retu
 //  VISTA: MI QUINIELA
 // ============================================================
 function renderQuiniela() {
+  renderApprovalBanner();
   renderMarcadores();
   refreshLive();
   $("#saveAll").disabled = !puedeEditar();
+}
+// Aviso para usuarios que aún no han sido autorizados por el admin.
+function renderApprovalBanner() {
+  const b = $("#approvalBanner");
+  if (!b) return;
+  if (!estaAprobado()) {
+    b.className = "banner locked";
+    b.textContent = "⏳ Tu cuenta está pendiente de autorización por el administrador. " +
+      "Puedes ver todo, pero aún no puedes guardar tu quiniela.";
+    b.classList.remove("hidden");
+  } else {
+    b.classList.add("hidden");
+  }
 }
 function renderMarcadores() {
   const cont = $("#partidosList"); cont.innerHTML = "";
@@ -462,10 +478,58 @@ function iniciarRealtime() {
 // ============================================================
 async function renderAdmin() {
   if (!S.profile?.is_admin) return;
+  await renderAdminUsuarios();
   renderAdminPartidos();
   const { data: rb } = await sb.from("res_bracket").select("*");
   S.realWinners = {}; (rb || []).forEach((r) => (S.realWinners[r.match_no] = r.ganador));
   refreshAdminBracket();
+}
+
+// ---------- Admin: aprobar usuarios ----------
+async function renderAdminUsuarios() {
+  const cont = $("#adminUsuarios"); if (!cont) return;
+  const { data: usuarios, error } = await sb.from("profiles")
+    .select("id, nombre, aprobado, is_admin, created_at")
+    .order("aprobado", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) { cont.innerHTML = `<p class="muted">Error: ${error.message}</p>`; return; }
+  if (!usuarios?.length) { cont.innerHTML = '<p class="muted">Aún no hay usuarios registrados.</p>'; return; }
+
+  const pendientes = usuarios.filter((u) => !u.aprobado && !u.is_admin).length;
+  let html = pendientes
+    ? `<p class="pendientes-aviso">🔔 ${pendientes} usuario(s) pendiente(s) de autorización.</p>`
+    : `<p class="muted small">Todos los usuarios están autorizados.</p>`;
+
+  usuarios.forEach((u) => {
+    const esYo = u.id === S.user.id;
+    const estado = u.is_admin
+      ? '<span class="badge-admin">admin</span>'
+      : u.aprobado
+        ? '<span class="badge-ok">autorizado</span>'
+        : '<span class="badge-pend">pendiente</span>';
+    // El admin no puede revocarse a sí mismo ni cambiar a otros admins desde aquí.
+    const accion = u.is_admin
+      ? ""
+      : u.aprobado
+        ? `<button class="btn small ghost" data-revocar="${u.id}">Revocar</button>`
+        : `<button class="btn small" data-aprobar="${u.id}">Autorizar</button>`;
+    html += `<div class="user-row ${u.aprobado || u.is_admin ? "" : "pend"}">
+      <span class="u-nombre">${u.nombre || "(sin nombre)"}${esYo ? " (tú)" : ""}</span>
+      ${estado}
+      <span class="u-accion">${accion}</span>
+    </div>`;
+  });
+  cont.innerHTML = html;
+
+  cont.querySelectorAll("[data-aprobar]").forEach((b) =>
+    (b.onclick = () => setAprobado(b.dataset.aprobar, true)));
+  cont.querySelectorAll("[data-revocar]").forEach((b) =>
+    (b.onclick = () => setAprobado(b.dataset.revocar, false)));
+}
+async function setAprobado(id, aprobado) {
+  const { error } = await sb.from("profiles").update({ aprobado }).eq("id", id);
+  if (error) { alert("Error: " + error.message); return; }
+  await renderAdminUsuarios();
 }
 function refreshAdminBracket() {
   const res = Bracket.resolve(grupoMatches(), realScores(), S.realWinners);
