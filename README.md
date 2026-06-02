@@ -50,11 +50,12 @@ Solo el admin queda exceptuado y puede cargar resultados.
    1. [`supabase/schema.sql`](supabase/schema.sql) — tablas, puntajes y seguridad.
    2. [`supabase/migracion_bracket.sql`](supabase/migracion_bracket.sql) — cuadro real de llaves.
    3. [`supabase/seed_partidos.sql`](supabase/seed_partidos.sql) — calendario real de grupos.
-   4. [`supabase/migracion_aprobacion.sql`](supabase/migracion_aprobacion.sql) — autorización de usuarios.
-   5. [`supabase/migracion_solo_marcadores.sql`](supabase/migracion_solo_marcadores.sql) — puntaje solo por marcador (3/1).
-   6. [`supabase/migracion_lock_por_partido.sql`](supabase/migracion_lock_por_partido.sql) — cierre 15 min antes de cada partido.
-   7. [`supabase/migracion_borrar_usuarios.sql`](supabase/migracion_borrar_usuarios.sql) — gestión de usuarios (admin).
-   8. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
+   4. [`supabase/seed_llaves.sql`](supabase/seed_llaves.sql) — los 32 partidos de eliminatoria (73–104).
+   5. [`supabase/migracion_aprobacion.sql`](supabase/migracion_aprobacion.sql) — autorización de usuarios.
+   6. [`supabase/migracion_solo_marcadores.sql`](supabase/migracion_solo_marcadores.sql) — puntaje solo por marcador (3/1).
+   7. [`supabase/migracion_lock_por_partido.sql`](supabase/migracion_lock_por_partido.sql) — cierre 15 min antes de cada partido.
+   8. [`supabase/migracion_borrar_usuarios.sql`](supabase/migracion_borrar_usuarios.sql) — gestión de usuarios (admin).
+   9. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
 
    > Si tu base **ya existía** antes de la bandera "aplica para quiniela", ejecuta además
    > [`supabase/migracion_aplica_quiniela.sql`](supabase/migracion_aplica_quiniela.sql)
@@ -103,10 +104,20 @@ A–L, 48 equipos) con equipos, grupo y fecha reales.
 > `numero | fase | grupo | local | visitante | fecha`).
 
 #### ¿Y las eliminatorias (16avos, 8vos, etc.)?
-Las llaves se pronostican **como partidos normales**: a medida que se conocen los cruces, el
-admin los importa (o los activa) y activa a los participantes; cada quien predice el marcador
-(3/1, dos pronósticos, ambos suman) igual que en la fase de grupos. La vista **Mundial (real)**
-sigue mostrando el cuadro verdadero del torneo a partir de los resultados que carga el admin.
+Las llaves se pronostican **como partidos normales** (marcador 3/1, dos pronósticos, ambos suman).
+Los 32 partidos (73–104) se crean con [`supabase/seed_llaves.sql`](supabase/seed_llaves.sql) con sus
+fechas/sedes reales y equipos en **"Por definir"**. Flujo del admin cuando termina cada ronda:
+
+1. Cargar los resultados de grupos (marcadores) → se arman las tablas.
+2. En **Admin → "🧮 Calcular 16avos"**: rellena los equipos reales de esa ronda desde las tablas.
+3. En **"Resultados reales — llaves"**, marcar el **ganador** de cada cruce de 16avos (esto define
+   quién avanza, incluso si fue por penales) y **Guardar llaves reales**.
+4. **"Calcular 8vos"**, marcar ganadores, y así sucesivamente hasta **"Calcular 3.º y Final"**.
+
+A nivel de jugador, una llave **solo aparece cuando sus dos equipos ya están definidos** (no
+"Por definir") **y** el admin lo activó. El **puntaje usa el marcador con que terminó el partido,
+sin penales**: un 1–1 definido por penales cuenta como empate para los puntos. La vista
+**Mundial (real)** muestra el cuadro verdadero a partir de los ganadores que marca el admin.
 
 ---
 

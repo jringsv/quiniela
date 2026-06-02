@@ -223,6 +223,11 @@ async function cargarMiQuiniela() {
 }
 // ¿Está el usuario activado por el admin para pronosticar este partido?
 const estaActivo = (p) => S.profile?.is_admin || (!!p && S.activos.has(p.id));
+// Marcador de equipos "por definir" en llaves aún no calculadas.
+const POR_DEFINIR = "Por definir";
+// Una llave solo está lista cuando sus dos equipos son reales (no 'Por definir').
+const partidoDefinido = (p) => !!p && !!p.equipo_local && !!p.equipo_visitante
+  && p.equipo_local !== POR_DEFINIR && p.equipo_visitante !== POR_DEFINIR;
 function mapIdToNum(id) { const p = S.partidos.find((x) => x.id === id); return p ? p.numero : id; }
 function numToId(num) { const p = S.partidos.find((x) => x.numero === num); return p ? p.id : null; }
 
@@ -237,11 +242,15 @@ function renderQuiniela() {
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
 // ordenados por fecha (los sin fecha al final) y luego por número.
 function partidosActivos() {
-  return S.partidos.filter((p) => estaActivo(p)).slice().sort((a, b) => {
-    const fa = a.fecha ? new Date(a.fecha).getTime() : Infinity;
-    const fb = b.fecha ? new Date(b.fecha).getTime() : Infinity;
-    return fa - fb || (a.numero || 0) - (b.numero || 0);
-  });
+  const admin = S.profile?.is_admin;
+  // El jugador solo ve partidos activados Y definidos (las llaves "Por definir"
+  // no se muestran hasta que el admin calcula los cruces reales).
+  return S.partidos.filter((p) => estaActivo(p) && (admin || partidoDefinido(p)))
+    .slice().sort((a, b) => {
+      const fa = a.fecha ? new Date(a.fecha).getTime() : Infinity;
+      const fb = b.fecha ? new Date(b.fecha).getTime() : Infinity;
+      return fa - fb || (a.numero || 0) - (b.numero || 0);
+    });
 }
 const FASES_LABEL = (window.QUINIELA_CONFIG && window.QUINIELA_CONFIG.FASES_LABEL) || {};
 const fmtFase = (f) => FASES_LABEL[f] || f || "";
@@ -536,6 +545,7 @@ async function renderAdmin() {
   const { data: rb } = await sb.from("res_bracket").select("*");
   S.realWinners = {}; (rb || []).forEach((r) => (S.realWinners[r.match_no] = r.ganador));
   refreshAdminBracket();
+  $$("[data-calc]").forEach((b) => (b.onclick = () => calcularCruces(b.dataset.calc)));
 }
 // Carga usuarios elegibles (aprobados/admin) y el mapa de activaciones por partido.
 async function cargarAdminActivacion() {
@@ -641,6 +651,31 @@ function refreshAdminBracket() {
     S.realWinners[n] = side; refreshAdminBracket();
   });
 }
+// Números de partido por ronda (coinciden con FIXTURE / CALENDARIO_LLAVES).
+const RONDA_NUMS = {
+  "16avos": Array.from({ length: 16 }, (_, i) => 73 + i),   // 73..88
+  "8vos":   Array.from({ length: 8 },  (_, i) => 89 + i),   // 89..96
+  "4tos":   Array.from({ length: 4 },  (_, i) => 97 + i),   // 97..100
+  "semis":  [101, 102],
+  "final":  [103, 104],                                     // 3.º y final
+};
+// Rellena los equipos reales de una ronda desde el cuadro (resultados de grupos
+// + ganadores elegidos por el admin). Escribe equipo_local/visitante en partidos.
+async function calcularCruces(fase) {
+  const nums = RONDA_NUMS[fase]; if (!nums) return;
+  const res = Bracket.resolve(grupoMatches(), realScores(), S.realWinners);
+  let ok = 0, pend = 0;
+  for (const num of nums) {
+    const p = S.partidos.find((x) => x.numero === num); if (!p) continue;
+    const t = res.teams[num] || {};
+    const a = t.a || POR_DEFINIR, b = t.b || POR_DEFINIR;
+    if (t.a && t.b) ok++; else pend++;
+    const { error } = await sb.from("partidos").update({ equipo_local: a, equipo_visitante: b }).eq("id", p.id);
+    if (error) { msg($("#calcMsg"), "Error: " + error.message, false); return; }
+  }
+  await cargarPartidos(); renderAdminPartidos(); refreshAdminBracket();
+  msg($("#calcMsg"), `✅ ${fase}: ${ok} cruce(s) definido(s)${pend ? ` · ${pend} aún por definir` : ""}.`, true);
+}
 function renderAdminPartidos() {
   const cont = $("#adminPartidos"); cont.innerHTML = "";
   const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
@@ -652,14 +687,23 @@ function renderAdminPartidos() {
     const usersHtml = (S.adminUsers || []).length
       ? S.adminUsers.map((u) => `<label class="part-chk"><input type="checkbox" data-act-p="${p.id}" data-act-u="${u.id}" ${activos.has(u.id) ? "checked" : ""}> ${esc(u.nombre || u.email || "—")}</label>`).join("")
       : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
+    // En llaves los equipos son editables (se rellenan con "Calcular cruces");
+    // en grupos van fijos.
+    const editTeams = p.fase !== "grupos";
+    const cellL = editTeams
+      ? `<input class="team-edit" type="text" data-team="${p.id}" data-side="l" value="${esc(p.equipo_local)}">`
+      : `<span class="eq">${teamRow(p.equipo_local)}</span>`;
+    const cellV = editTeams
+      ? `<input class="team-edit" type="text" data-team="${p.id}" data-side="v" value="${esc(p.equipo_visitante)}">`
+      : `<span class="eq v">${teamRow(p.equipo_visitante)}</span>`;
     const row = document.createElement("div"); row.className = "admin-partido" + (aplica ? "" : " no-aplica");
     row.innerHTML = `
       <div class="admin-partido-main">
-        <span class="eq">${teamRow(p.equipo_local)}</span>
+        ${cellL}
         <input type="number" min="0" max="99" data-rid="${p.id}" data-side="l" value="${p.gol_local ?? ""}">
         <span class="vs">vs</span>
         <input type="number" min="0" max="99" data-rid="${p.id}" data-side="v" value="${p.gol_visitante ?? ""}">
-        <span class="eq v">${teamRow(p.equipo_visitante)}</span>
+        ${cellV}
         <button class="btn small" data-save="${p.id}">Guardar</button>
         <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos (3/1).">
           <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
@@ -686,6 +730,10 @@ async function guardarResultado(id) {
   const l = document.querySelector(`[data-rid="${id}"][data-side="l"]`).value;
   const v = document.querySelector(`[data-rid="${id}"][data-side="v"]`).value;
   const upd = { gol_local: l === "" ? null : +l, gol_visitante: v === "" ? null : +v };
+  const tl = document.querySelector(`[data-team="${id}"][data-side="l"]`);
+  const tv = document.querySelector(`[data-team="${id}"][data-side="v"]`);
+  if (tl) upd.equipo_local = tl.value.trim() || POR_DEFINIR;
+  if (tv) upd.equipo_visitante = tv.value.trim() || POR_DEFINIR;
   const { error } = await sb.from("partidos").update(upd).eq("id", id);
   if (error) return alert("Error: " + error.message);
   await cargarPartidos(); renderAdminPartidos(); refreshAdminBracket();

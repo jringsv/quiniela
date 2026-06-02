@@ -30,7 +30,12 @@
       "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1200,540 --screenshot=C:/Temp/desktop2.png file:///C:/Temp/quiniela_preview.html)",
       "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,660 --screenshot=C:/Temp/mobile2.png file:///C:/Temp/quiniela_preview.html)",
       "Bash(grep -oE '\"\\(TP|F|FINAL|THIRD|3\\)\":[^Z]{0,120}|TP:|F:|\"n\": 10[0-9]' js/fixture-data.js)",
-      "Bash(grep -noE 'FIXTURE\\\\.[A-Z_]+|[A-Z_]{3,}\\\\[n\\\\]|info = [^;]+;|FECHAS|SEDES|MATCHINFO|\\\\.M\\\\b' js/app.js)"
+      "Bash(grep -noE 'FIXTURE\\\\.[A-Z_]+|[A-Z_]{3,}\\\\[n\\\\]|info = [^;]+;|FECHAS|SEDES|MATCHINFO|\\\\.M\\\\b' js/app.js)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1200,560 --screenshot=C:/Temp/admin_d.png file:///C:/Temp/admin_preview.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,720 --screenshot=C:/Temp/admin_m.png file:///C:/Temp/admin_preview.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,820 --screenshot=C:/Temp/admin_m2.png file:///C:/Temp/admin_preview.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=390,820 --screenshot=C:/Temp/admin_m3.png file:///C:/Temp/admin_preview.html)",
+      "Bash('/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe' --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=480,860 --screenshot=C:/Temp/admin_480.png file:///C:/Temp/admin_preview.html)"
     ],
     "additionalDirectories": [
       "\\tmp"

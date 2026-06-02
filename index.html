@@ -117,7 +117,7 @@
       </div>
 
       <div class="card">
-        <h2>Resultados reales — fase de grupos</h2>
+        <h2>Resultados reales — partidos (grupos y llaves)</h2>
         <details>
           <summary>➕ Agregar / importar partidos</summary>
           <div class="admin-import">
@@ -128,13 +128,26 @@
             <button id="importBtn" class="btn">Importar partidos</button>
           </div>
         </details>
+        <div class="calc-cruces">
+          <span class="muted small">🧮 Genera los equipos reales de cada ronda (desde los resultados de
+            grupos y los ganadores que marcas abajo). Calcula una ronda, marca sus ganadores, y sigue con la siguiente:</span>
+          <div class="calc-btns">
+            <button class="btn small" data-calc="16avos">Calcular 16avos</button>
+            <button class="btn small" data-calc="8vos">Calcular 8vos</button>
+            <button class="btn small" data-calc="4tos">Calcular 4tos</button>
+            <button class="btn small" data-calc="semis">Calcular Semis</button>
+            <button class="btn small" data-calc="final">Calcular 3.º y Final</button>
+          </div>
+          <span id="calcMsg" class="msg"></span>
+        </div>
         <div id="adminPartidos" class="partidos admin"></div>
       </div>
 
       <div class="card">
-        <h2>Resultados reales — llaves</h2>
-        <p class="muted small">Las tablas y los cruces salen de los marcadores de arriba.
-          Marca al ganador real de cada eliminatoria y guarda.</p>
+        <h2>Resultados reales — llaves (ganador de cada cruce)</h2>
+        <p class="muted small">Marca al <strong>ganador real</strong> de cada eliminatoria (define quién
+          avanza, incluso si se resolvió por penales) y guarda. El <em>marcador</em> de cada llave se
+          captura arriba, en la lista de partidos.</p>
         <div id="bracketAdmin" class="bracket-wrap"></div>
         <button id="saveAdminBracket" class="btn primary">💾 Guardar llaves reales</button>
         <span id="adminBracketMsg" class="msg"></span>

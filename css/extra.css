@@ -112,6 +112,25 @@
   padding:.4rem .2rem .2rem}
 .part-chk{display:flex; align-items:center; gap:.4rem; font-size:.82rem; cursor:pointer}
 .part-chk input{width:auto; margin:0}
+/* Equipos editables en llaves (admin) */
+.admin-partido-main .team-edit{flex:1; min-width:90px; width:auto; margin-top:0; padding:.4rem .5rem;
+  font-weight:700; font-size:.86rem}
+.admin-partido-main .team-edit[data-side="l"]{text-align:right}
+/* Barra "Calcular cruces" */
+.calc-cruces{margin:.6rem 0 .9rem; padding:.7rem .8rem; background:var(--panel2);
+  border:1px solid var(--line); border-radius:12px}
+.calc-btns{display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.5rem}
+.calc-cruces .msg{text-align:left; min-height:0; margin-top:.4rem}
+
+/* En móvil, la fila de admin envuelve para no desbordar la página */
+@media(max-width:640px){
+  .admin-partido-main{flex-wrap:wrap; gap:.4rem}
+  .admin-partido-main .eq,.admin-partido-main .eq.v{flex:1 1 100%; text-align:left}
+  .admin-partido-main .eq.v .team{justify-content:flex-start}
+  .admin-partido-main .team-edit{flex:1 1 100%; text-align:left}
+  .admin-partido-main .team-edit[data-side="l"]{text-align:left}
+  .admin-partido-main .fch{flex-basis:100%}
+}
 
 /* ---- Fecha / hora / sede en las llaves (eliminatorias) ---- */
 .ko-fecha{font-size:.62rem; color:var(--muted); line-height:1.3; padding:.22rem .5rem;
