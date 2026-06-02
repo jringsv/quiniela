@@ -522,10 +522,11 @@ async function renderAdminUsuarios() {
     // Para editar prellenamos con el nombre real con el que se registró
     // (si existe); así se corrige fácil cuando quedó guardado el correo.
     const prefill = u.nombre_registrado || u.nombre || "";
-    // Editar nombre y borrar: disponibles para cualquier usuario que no sea admin.
-    if (!u.is_admin) {
-      accion += ` <button class="btn small ghost" data-editar="${u.id}" data-prefill="${esc(prefill)}">Editar nombre</button>`;
-      if (!esYo) accion += ` <button class="btn small danger" data-borrar="${u.id}" data-nombre="${esc(u.nombre)}" data-npred="${u.n_predicciones || 0}">Borrar</button>`;
+    // Editar nombre: disponible para CUALQUIER usuario, incluido el admin.
+    accion += ` <button class="btn small ghost" data-editar="${u.id}" data-prefill="${esc(prefill)}">Editar nombre</button>`;
+    // Borrar: solo usuarios que no sean admin y que no sean uno mismo.
+    if (!u.is_admin && !esYo) {
+      accion += ` <button class="btn small danger" data-borrar="${u.id}" data-nombre="${esc(u.nombre)}" data-npred="${u.n_predicciones || 0}">Borrar</button>`;
     }
     html += `<div class="user-row ${u.aprobado || u.is_admin ? "" : "pend"}">
       <span class="u-nombre">${u.nombre || "(sin nombre)"}${esYo ? " (tú)" : ""}
