@@ -142,8 +142,7 @@ async function onLogin() {
 
     await cargarConfigLock();
     await cargarPartidos();
-    await cargarMiQuiniela();
-    showView("quiniela");
+    showView("quiniela");   // recarga la quiniela (activación + pronósticos) al entrar
     iniciarRealtime();
   } catch (e) {
     // Si algo falla al cargar los datos, mostramos el error en vez de dejar
@@ -169,7 +168,9 @@ function showView(name) {
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + name).classList.remove("hidden");
   $$("#nav .tab").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
-  if (name === "quiniela") renderQuiniela();
+  // Recarga la activación y los pronósticos cada vez (evita ver datos en caché
+  // si el admin cambió el cupo después de iniciar sesión).
+  if (name === "quiniela") cargarMiQuiniela().then(renderQuiniela);
   if (name === "mundial") renderMundialReal();
   if (name === "dashboard") cargarLeaderboard();
   if (name === "admin") renderAdmin();
@@ -542,8 +543,13 @@ function iniciarRealtime() {
       if (!$("#view-mundial").classList.contains("hidden")) renderMundialReal();
     });
   };
+  // Si el admin cambia mi activación/cupo, refresca mi quiniela si la tengo abierta.
+  const refrescarQuiniela = () => {
+    if (!$("#view-quiniela").classList.contains("hidden")) cargarMiQuiniela().then(renderQuiniela);
+  };
   S._channel = sb.channel("quiniela-live")
-    .on("postgres_changes", { event: "*", schema: "public", table: "partidos" }, refrescar)
+    .on("postgres_changes", { event: "*", schema: "public", table: "partidos" }, () => { refrescar(); refrescarQuiniela(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "partido_usuario" }, refrescarQuiniela)
     .on("postgres_changes", { event: "*", schema: "public", table: "resultado_avance" }, () => { if (!$("#view-dashboard").classList.contains("hidden")) cargarLeaderboard(); })
     .on("postgres_changes", { event: "*", schema: "public", table: "resultado_posicion" }, () => { if (!$("#view-dashboard").classList.contains("hidden")) cargarLeaderboard(); })
     .on("postgres_changes", { event: "*", schema: "public", table: "res_bracket" }, () => { if (!$("#view-mundial").classList.contains("hidden")) renderMundialReal(); })
