@@ -301,8 +301,8 @@ function filaMarcador(p) {
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
   const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
   const np = nPredDe(p);   // 0 = no participa · 1 ó 2 = pronósticos permitidos
-  const npTag = (!S.profile?.is_admin && np === 0)
-    ? `<span class="tag-cerrado" title="El admin no te asignó pronósticos en este partido.">no participas</span>` : "";
+  const npTag = (np === 0)
+    ? `<span class="tag-cerrado" title="No estás activado para pronosticar en este partido.">no participas</span>` : "";
   const slotBloqTitle = np === 0 ? "No participas en este partido." : "Solo tienes 1 pronóstico en este partido.";
   const slotInputs = (slot) => {
     const s = sc[slot] || {};
