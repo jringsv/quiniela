@@ -97,6 +97,9 @@
   text-transform:uppercase; letter-spacing:.03em; white-space:nowrap}
 .pron-slot input{width:46px}
 .pron-slot .vs{color:var(--muted); font-weight:700}
+/* Pronóstico no habilitado para este usuario (cupo 1 ó 0) */
+.pron-slot.slot-bloqueado{opacity:.5; background:#eef0f3; border-style:dashed}
+.pron-slot.slot-bloqueado input{background:#e7eaef; cursor:not-allowed}
 .partido2 .fch{color:var(--muted); font-size:.72rem}
 /* Pie de la fila: botón guardar por partido + mensaje + fecha */
 .pron-actions{display:flex; align-items:center; justify-content:center; flex-wrap:wrap;

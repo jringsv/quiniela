@@ -31,8 +31,9 @@ El puntaje se calcula con los **marcadores de los partidos** (grupos **y** llave
 > cualquier otro (misma regla 3/1). No hay un sistema de puntos aparte para fases o posiciones.
 
 > 👤 **Activación por partido:** el admin habilita, **partido por partido**, qué usuarios
-> participan y **cuántos pronósticos** (1 ó 2) da cada uno. Un usuario solo ve y pronostica
-> los partidos en los que fue activado. Por defecto, al crear un partido **nadie** participa.
+> participan y **cuántos pronósticos** (1 ó 2) da cada uno. El jugador **ve todos** los partidos
+> definidos, pero solo puede llenar los pronósticos habilitados: con "1" se bloquea el 2.º, y con
+> "No participa" se bloquean ambos (🔒). Por defecto, al crear un partido **nadie** participa.
 
 > ⚑ **Partidos que aplican:** en **Admin** cada partido tiene un check **"aplica"**; al
 > desmarcarlo, ese partido deja de otorgar puntos (3/1). Al jugador se le muestra la

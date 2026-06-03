@@ -242,12 +242,13 @@ function renderQuiniela() {
 }
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
 // ordenados por fecha (los sin fecha al final) y luego por número.
-function partidosActivos() {
+function partidosVisibles() {
   const admin = S.profile?.is_admin;
-  // El jugador solo ve partidos activados Y definidos (las llaves "Por definir"
-  // no se muestran hasta que el admin calcula los cruces reales).
+  // El jugador ve TODOS los partidos definidos (las llaves "Por definir" no se
+  // muestran hasta que el admin calcula los cruces). El cupo (0/1/2) controla
+  // cuántos pronósticos puede editar en cada partido.
   // Orden por número: agrupa por sección (grupos 1–72, luego llaves 73–104).
-  return S.partidos.filter((p) => estaActivo(p) && (admin || partidoDefinido(p)))
+  return S.partidos.filter((p) => admin || partidoDefinido(p))
     .slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
 }
 const FASES_LABEL = (window.QUINIELA_CONFIG && window.QUINIELA_CONFIG.FASES_LABEL) || {};
@@ -272,9 +273,9 @@ function renderMarcadores() {
   if (!S.partidos.length) {
     cont.innerHTML = '<p class="muted">Aún no hay partidos cargados (el admin debe importarlos).</p>'; return;
   }
-  const ms = partidosActivos();
+  const ms = partidosVisibles();
   if (!ms.length) {
-    cont.innerHTML = '<p class="muted">Aún no estás habilitado en ningún partido. El administrador debe activarte para que puedas pronosticar.</p>';
+    cont.innerHTML = '<p class="muted">Aún no hay partidos disponibles.</p>';
     return;
   }
   let sec = null;
@@ -297,17 +298,21 @@ function filaMarcador(p) {
   const ctx = fmtFecha(p.fecha);
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
   const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
-  const np = nPredDe(p);   // 1 ó 2 pronósticos permitidos
-  const slotInputs = (slot, solo) => {
+  const np = nPredDe(p);   // 0 = no participa · 1 ó 2 = pronósticos permitidos
+  const npTag = (!S.profile?.is_admin && np === 0)
+    ? `<span class="tag-cerrado" title="El admin no te asignó pronósticos en este partido.">no participas</span>` : "";
+  const slotBloqTitle = np === 0 ? "No participas en este partido." : "Solo tienes 1 pronóstico en este partido.";
+  const slotInputs = (slot) => {
     const s = sc[slot] || {};
-    return `<div class="pron-slot">
-      <span class="pron-label">${solo ? "Pronóstico" : "Pronóstico " + slot}</span>
+    const bloq = slot > np;   // este pronóstico no está habilitado para el usuario
+    return `<div class="pron-slot${bloq ? " slot-bloqueado" : ""}"${bloq ? ` title="${slotBloqTitle}"` : ""}>
+      <span class="pron-label">Pronóstico ${slot}${bloq ? " 🔒" : ""}</span>
       <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="l" value="${s.gl ?? ""}">
       <span class="vs">-</span>
       <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="v" value="${s.gv ?? ""}">
     </div>`;
   };
-  const pronsHtml = np >= 2 ? slotInputs(1, false) + slotInputs(2, false) : slotInputs(1, true);
+  const pronsHtml = slotInputs(1) + slotInputs(2);
   // Pie: botón de guardar (mientras sea editable); si cerró, solo la fecha.
   const acciones = editable
     ? `<button class="btn small primary pron-save">💾 Guardar partido</button>
@@ -319,12 +324,12 @@ function filaMarcador(p) {
       <span class="eq">${teamRow(p.equipo_local)}</span>
       <span class="vs">vs</span>
       <span class="eq v">${teamRow(p.equipo_visitante)}</span>
-      ${tag}${lockTag}
+      ${tag}${lockTag}${npTag}
     </div>
     <div class="partido2-prons">${pronsHtml}</div>
     <div class="pron-actions">${acciones}</div>`;
   row.querySelectorAll("input").forEach((i) => {
-    i.disabled = !editable;
+    i.disabled = !editable || (+i.dataset.slot > np);   // slot fuera del cupo => bloqueado
     i.oninput = () => {
       const n = +i.dataset.n, slot = +i.dataset.slot;
       ((S.scores[n] ||= {})[slot] ||= {});
