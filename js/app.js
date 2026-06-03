@@ -571,7 +571,7 @@ async function renderAdmin() {
 async function cargarAdminActivacion() {
   const [{ data: us }, { data: pu }] = await Promise.all([
     sb.rpc("admin_list_users"),
-    sb.from("partido_usuario").select("partido_id,user_id"),
+    sb.from("partido_usuario").select("partido_id,user_id,n_pred"),
   ]);
   S.adminUsers = (us || []).filter((u) => u.aprobado || u.is_admin);
   S.activByPartido = {};   // partido_id -> Map(user_id -> n_pred)
@@ -579,10 +579,13 @@ async function cargarAdminActivacion() {
 }
 // n = 0 (no participa) | 1 | 2 pronósticos para ese usuario en ese partido.
 async function setParticipante(pid, uid, n) {
-  let error;
-  if (n === 0) ({ error } = await sb.from("partido_usuario").delete().eq("partido_id", pid).eq("user_id", uid));
-  else ({ error } = await sb.from("partido_usuario").upsert({ partido_id: pid, user_id: uid, n_pred: n }, { onConflict: "partido_id,user_id" }));
-  if (error) { alert("Error: " + error.message); return; }
+  // Borrar + insertar (determinista; evita rarezas de upsert/onConflict).
+  const { error: delErr } = await sb.from("partido_usuario").delete().eq("partido_id", pid).eq("user_id", uid);
+  if (delErr) { alert("Error: " + delErr.message); return; }
+  if (n !== 0) {
+    const { error } = await sb.from("partido_usuario").insert({ partido_id: pid, user_id: uid, n_pred: n });
+    if (error) { alert("Error: " + error.message); await cargarAdminActivacion(); renderAdminPartidos(); return; }
+  }
   const m = (S.activByPartido[pid] ||= new Map());
   if (n === 0) m.delete(uid); else m.set(uid, n);
   const cnt = document.querySelector(`[data-count="${pid}"]`); if (cnt) cnt.textContent = m.size;
