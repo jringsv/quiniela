@@ -221,10 +221,12 @@ async function cargarMiQuiniela() {
   });
   (act || []).forEach((a) => S.activos.set(a.partido_id, a.n_pred || 2));
 }
-// ¿Está el usuario activado por el admin para pronosticar este partido?
-const estaActivo = (p) => S.profile?.is_admin || (!!p && S.activos.has(p.id));
-// Cuántos pronósticos puede dar el usuario en este partido (1 ó 2; admin: 2).
-const nPredDe = (p) => S.profile?.is_admin ? 2 : (p ? (S.activos.get(p.id) || 0) : 0);
+// ¿Está activado para pronosticar este partido? Se basa SOLO en la activación
+// real (partido_usuario), también para el admin: si no se activó a sí mismo,
+// también le sale bloqueado.
+const estaActivo = (p) => !!p && S.activos.has(p.id);
+// Cuántos pronósticos puede dar en este partido: 0 (no participa) | 1 | 2.
+const nPredDe = (p) => (p ? (S.activos.get(p.id) || 0) : 0);
 // Marcador de equipos "por definir" en llaves aún no calculadas.
 const POR_DEFINIR = "Por definir";
 // Una llave solo está lista cuando sus dos equipos son reales (no 'Por definir').
@@ -243,12 +245,12 @@ function renderQuiniela() {
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
 // ordenados por fecha (los sin fecha al final) y luego por número.
 function partidosVisibles() {
-  const admin = S.profile?.is_admin;
-  // El jugador ve TODOS los partidos definidos (las llaves "Por definir" no se
-  // muestran hasta que el admin calcula los cruces). El cupo (0/1/2) controla
-  // cuántos pronósticos puede editar en cada partido.
+  // Se ven TODOS los partidos definidos (las llaves "Por definir" no se muestran
+  // hasta que el admin calcula los cruces). El cupo (0/1/2) controla cuántos
+  // pronósticos puede editar en cada partido. Mismo criterio para todos (incluido
+  // el admin: si no está activado, le sale bloqueado).
   // Orden por número: agrupa por sección (grupos 1–72, luego llaves 73–104).
-  return S.partidos.filter((p) => admin || partidoDefinido(p))
+  return S.partidos.filter((p) => partidoDefinido(p))
     .slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
 }
 const FASES_LABEL = (window.QUINIELA_CONFIG && window.QUINIELA_CONFIG.FASES_LABEL) || {};
