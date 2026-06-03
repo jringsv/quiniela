@@ -15,7 +15,7 @@ const S = {
   user: null, profile: null,
   partidos: [],            // todos los partidos (de la BD)
   scores: {},              // predicción del usuario {numero:{1:{gl,gv}, 2:{gl,gv}}}  (dos slots)
-  activos: new Set(),      // partido_id donde el admin activó a este usuario
+  activos: new Map(),      // partido_id -> n_pred (1 ó 2) donde el admin activó a este usuario
   realWinners: {},         // bracket real (res_bracket)
   authMode: "login",
 };
@@ -210,19 +210,21 @@ async function cargarPartidos() {
   S.partidos = data || [];
 }
 async function cargarMiQuiniela() {
-  S.scores = {}; S.activos = new Set();
+  S.scores = {}; S.activos = new Map();
   const [{ data: preds }, { data: act }] = await Promise.all([
     sb.from("pred_partidos").select("*").eq("user_id", S.user.id),
-    sb.from("partido_usuario").select("partido_id").eq("user_id", S.user.id),
+    sb.from("partido_usuario").select("partido_id,n_pred").eq("user_id", S.user.id),
   ]);
   (preds || []).forEach((p) => {
     const n = mapIdToNum(p.partido_id);
     (S.scores[n] ||= {})[p.slot || 1] = { gl: p.gol_local, gv: p.gol_visitante };
   });
-  (act || []).forEach((a) => S.activos.add(a.partido_id));
+  (act || []).forEach((a) => S.activos.set(a.partido_id, a.n_pred || 2));
 }
 // ¿Está el usuario activado por el admin para pronosticar este partido?
 const estaActivo = (p) => S.profile?.is_admin || (!!p && S.activos.has(p.id));
+// Cuántos pronósticos puede dar el usuario en este partido (1 ó 2; admin: 2).
+const nPredDe = (p) => S.profile?.is_admin ? 2 : (p ? (S.activos.get(p.id) || 0) : 0);
 // Marcador de equipos "por definir" en llaves aún no calculadas.
 const POR_DEFINIR = "Por definir";
 // Una llave solo está lista cuando sus dos equipos son reales (no 'Por definir').
@@ -295,15 +297,17 @@ function filaMarcador(p) {
   const ctx = fmtFecha(p.fecha);
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
   const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
-  const slotInputs = (slot) => {
+  const np = nPredDe(p);   // 1 ó 2 pronósticos permitidos
+  const slotInputs = (slot, solo) => {
     const s = sc[slot] || {};
     return `<div class="pron-slot">
-      <span class="pron-label">Pronóstico ${slot}</span>
+      <span class="pron-label">${solo ? "Pronóstico" : "Pronóstico " + slot}</span>
       <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="l" value="${s.gl ?? ""}">
       <span class="vs">-</span>
       <input type="number" min="0" max="99" data-n="${p.numero}" data-slot="${slot}" data-side="v" value="${s.gv ?? ""}">
     </div>`;
   };
+  const pronsHtml = np >= 2 ? slotInputs(1, false) + slotInputs(2, false) : slotInputs(1, true);
   // Pie: botón de guardar (mientras sea editable); si cerró, solo la fecha.
   const acciones = editable
     ? `<button class="btn small primary pron-save">💾 Guardar partido</button>
@@ -317,7 +321,7 @@ function filaMarcador(p) {
       <span class="eq v">${teamRow(p.equipo_visitante)}</span>
       ${tag}${lockTag}
     </div>
-    <div class="partido2-prons">${slotInputs(1)}${slotInputs(2)}</div>
+    <div class="partido2-prons">${pronsHtml}</div>
     <div class="pron-actions">${acciones}</div>`;
   row.querySelectorAll("input").forEach((i) => {
     i.disabled = !editable;
@@ -335,9 +339,11 @@ function filaMarcador(p) {
 // mientras el partido no haya cerrado (15 min antes de empezar).
 async function guardarPartido(p, btn, msgEl) {
   if (!editableMarcadorAhora(p)) return;
+  const np = nPredDe(p);
   const slots = S.scores[p.numero] || {};
   const filled = {};
   [1, 2].forEach((slot) => {
+    if (slot > np) return;   // fuera del cupo permitido para este usuario
     const s = slots[slot];
     if (s && s.gl != null && s.gv != null) filled[slot] = { gl: s.gl, gv: s.gv };
   });
@@ -555,17 +561,18 @@ async function cargarAdminActivacion() {
     sb.from("partido_usuario").select("partido_id,user_id"),
   ]);
   S.adminUsers = (us || []).filter((u) => u.aprobado || u.is_admin);
-  S.activByPartido = {};
-  (pu || []).forEach((r) => { (S.activByPartido[r.partido_id] ||= new Set()).add(r.user_id); });
+  S.activByPartido = {};   // partido_id -> Map(user_id -> n_pred)
+  (pu || []).forEach((r) => { (S.activByPartido[r.partido_id] ||= new Map()).set(r.user_id, r.n_pred || 2); });
 }
-async function toggleParticipante(pid, uid, on) {
+// n = 0 (no participa) | 1 | 2 pronósticos para ese usuario en ese partido.
+async function setParticipante(pid, uid, n) {
   let error;
-  if (on) ({ error } = await sb.from("partido_usuario").insert({ partido_id: pid, user_id: uid }));
-  else ({ error } = await sb.from("partido_usuario").delete().eq("partido_id", pid).eq("user_id", uid));
+  if (n === 0) ({ error } = await sb.from("partido_usuario").delete().eq("partido_id", pid).eq("user_id", uid));
+  else ({ error } = await sb.from("partido_usuario").upsert({ partido_id: pid, user_id: uid, n_pred: n }, { onConflict: "partido_id,user_id" }));
   if (error) { alert("Error: " + error.message); return; }
-  (S.activByPartido[pid] ||= new Set());
-  if (on) S.activByPartido[pid].add(uid); else S.activByPartido[pid].delete(uid);
-  const cnt = document.querySelector(`[data-count="${pid}"]`); if (cnt) cnt.textContent = S.activByPartido[pid].size;
+  const m = (S.activByPartido[pid] ||= new Map());
+  if (n === 0) m.delete(uid); else m.set(uid, n);
+  const cnt = document.querySelector(`[data-count="${pid}"]`); if (cnt) cnt.textContent = m.size;
 }
 
 // ---------- Admin: aprobar usuarios ----------
@@ -589,13 +596,19 @@ async function renderAdminUsuarios() {
       : u.aprobado
         ? '<span class="badge-ok">autorizado</span>'
         : '<span class="badge-pend">pendiente</span>';
-    // El admin no puede revocarse a sí mismo ni cambiar/borrar a otros admins desde aquí.
+    const esc = (s) => (s || "").replace(/"/g, "&quot;");
+    // Autorizar / revocar (solo para no-admins).
     let accion = u.is_admin
       ? ""
       : u.aprobado
         ? `<button class="btn small ghost" data-revocar="${u.id}">Revocar</button>`
         : `<button class="btn small" data-aprobar="${u.id}">Autorizar</button>`;
-    const esc = (s) => (s || "").replace(/"/g, "&quot;");
+    // Promover / quitar admin (puede haber varios administradores).
+    if (u.is_admin) {
+      if (!esYo) accion += ` <button class="btn small ghost" data-quitaradmin="${u.id}" data-nombre="${esc(u.nombre)}">Quitar admin</button>`;
+    } else {
+      accion += ` <button class="btn small" data-haceradmin="${u.id}" data-nombre="${esc(u.nombre)}">Hacer admin</button>`;
+    }
     // Para editar prellenamos con el nombre real con el que se registró
     // (si existe); así se corrige fácil cuando quedó guardado el correo.
     const prefill = u.nombre_registrado || u.nombre || "";
@@ -622,9 +635,28 @@ async function renderAdminUsuarios() {
     (b.onclick = () => editarNombreUsuario(b.dataset.editar, b.dataset.prefill)));
   cont.querySelectorAll("[data-borrar]").forEach((b) =>
     (b.onclick = () => borrarUsuario(b.dataset.borrar, b.dataset.nombre, +b.dataset.npred)));
+  cont.querySelectorAll("[data-haceradmin]").forEach((b) =>
+    (b.onclick = () => setAdmin(b.dataset.haceradmin, true, b.dataset.nombre)));
+  cont.querySelectorAll("[data-quitaradmin]").forEach((b) =>
+    (b.onclick = () => setAdmin(b.dataset.quitaradmin, false, b.dataset.nombre)));
 }
 async function setAprobado(id, aprobado) {
   const { error } = await sb.from("profiles").update({ aprobado }).eq("id", id);
+  if (error) { alert("Error: " + error.message); return; }
+  await renderAdminUsuarios();
+}
+// Promueve o quita el rol de administrador. Pueden coexistir varios admins.
+// (La RLS + el trigger protect_profile_fields solo permiten esto a un admin.)
+async function setAdmin(id, make, nombre) {
+  if (!make && id === S.user.id) { alert("No puedes quitarte el rol de admin a ti mismo."); return; }
+  const quien = nombre || "este usuario";
+  const aviso = make
+    ? `¿Dar permisos de ADMINISTRADOR a "${quien}"?\n\nPodrá cargar resultados, activar usuarios, promover admins y gestionar todo.`
+    : `¿Quitar los permisos de administrador a "${quien}"?`;
+  if (!confirm(aviso)) return;
+  // Al promover, queda también aprobado (un admin siempre participa).
+  const upd = make ? { is_admin: true, aprobado: true } : { is_admin: false };
+  const { error } = await sb.from("profiles").update(upd).eq("id", id);
   if (error) { alert("Error: " + error.message); return; }
   await renderAdminUsuarios();
 }
@@ -700,9 +732,18 @@ function renderAdminPartidos() {
       const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = s; cont.appendChild(h);
     }
     const aplica = p.aplica_quiniela !== false;   // por defecto aplica
-    const activos = (S.activByPartido && S.activByPartido[p.id]) || new Set();
+    const activos = (S.activByPartido && S.activByPartido[p.id]) || new Map();
+    const opt = (u) => {
+      const n = activos.get(u.id) || 0;
+      return `<label class="part-chk">
+        <select data-act-p="${p.id}" data-act-u="${u.id}">
+          <option value="0" ${n === 0 ? "selected" : ""}>No participa</option>
+          <option value="1" ${n === 1 ? "selected" : ""}>1 pronóstico</option>
+          <option value="2" ${n === 2 ? "selected" : ""}>2 pronósticos</option>
+        </select> ${esc(u.nombre || u.email || "—")}</label>`;
+    };
     const usersHtml = (S.adminUsers || []).length
-      ? S.adminUsers.map((u) => `<label class="part-chk"><input type="checkbox" data-act-p="${p.id}" data-act-u="${u.id}" ${activos.has(u.id) ? "checked" : ""}> ${esc(u.nombre || u.email || "—")}</label>`).join("")
+      ? S.adminUsers.map(opt).join("")
       : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
     // Los equipos de llaves se rellenan SOLOS al guardar resultados (no se editan).
     const esLlave = p.fase !== "grupos";
@@ -738,7 +779,7 @@ function renderAdminPartidos() {
   });
   cont.querySelectorAll("[data-save]").forEach((b) => (b.onclick = () => guardarResultado(b.dataset.save)));
   cont.querySelectorAll("[data-aplica]").forEach((c) => (c.onchange = () => guardarAplica(c.dataset.aplica, c.checked)));
-  cont.querySelectorAll("[data-act-p]").forEach((c) => (c.onchange = () => toggleParticipante(+c.dataset.actP, c.dataset.actU, c.checked)));
+  cont.querySelectorAll("[data-act-p]").forEach((c) => (c.onchange = () => setParticipante(+c.dataset.actP, c.dataset.actU, +c.value)));
   cont.querySelectorAll("[data-tb]").forEach((b) => (b.onclick = () => setTiebreak(+b.dataset.tb, b.dataset.side)));
 }
 async function guardarAplica(id, aplica) {

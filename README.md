@@ -19,9 +19,9 @@ El puntaje se calcula con los **marcadores de los partidos** (grupos **y** llave
 | Pronóstico exacto con goles (marcador) | **3** |
 | Pronóstico al partido (acertar gane o empate) | **1** |
 
-> 🎯 **Dos pronósticos por partido:** cada usuario puede dar **dos marcadores diferentes**
-> del mismo partido (Pronóstico 1 y Pronóstico 2) y **ambos suman**. El máximo por partido
-> es 3 + 1 = 4 (un exacto + un resultado). Los dos marcadores deben ser distintos entre sí.
+> 🎯 **Uno o dos pronósticos por partido:** el admin define, al activar a cada usuario en un
+> partido, si dará **1 o 2** marcadores. Con dos, deben ser **diferentes** y **ambos suman**
+> (máximo 3 + 1 = 4: un exacto + un resultado).
 
 > 💾 **Guardado por partido:** cada partido se guarda (y se edita) por separado, así puedes
 > llenar poco a poco. Se puede **modificar hasta 15 minutos antes** de que empiece el partido;
@@ -31,8 +31,8 @@ El puntaje se calcula con los **marcadores de los partidos** (grupos **y** llave
 > cualquier otro (misma regla 3/1). No hay un sistema de puntos aparte para fases o posiciones.
 
 > 👤 **Activación por partido:** el admin habilita, **partido por partido**, qué usuarios
-> participan. Un usuario solo ve y pronostica los partidos en los que fue activado. Por
-> defecto, al crear un partido **nadie** está activado.
+> participan y **cuántos pronósticos** (1 ó 2) da cada uno. Un usuario solo ve y pronostica
+> los partidos en los que fue activado. Por defecto, al crear un partido **nadie** participa.
 
 > ⚑ **Partidos que aplican:** en **Admin** cada partido tiene un check **"aplica"**; al
 > desmarcarlo, ese partido deja de otorgar puntos (3/1). Al jugador se le muestra la
@@ -60,6 +60,7 @@ Solo el admin queda exceptuado y puede cargar resultados.
    7. [`supabase/migracion_lock_por_partido.sql`](supabase/migracion_lock_por_partido.sql) — cierre 15 min antes de cada partido.
    8. [`supabase/migracion_borrar_usuarios.sql`](supabase/migracion_borrar_usuarios.sql) — gestión de usuarios (admin).
    9. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
+   10. [`supabase/migracion_npred_por_activacion.sql`](supabase/migracion_npred_por_activacion.sql) — activar con 1 ó 2 pronósticos por usuario/partido.
 
    > Nota: si en algún momento corriste `migracion_pred_inmutable.sql` (descartada), ejecuta
    > [`supabase/migracion_pred_editable.sql`](supabase/migracion_pred_editable.sql) para volver a
@@ -184,9 +185,17 @@ se pronostican como partidos normales.
 ## 👤 Activación de participantes por partido
 Por defecto, al crear un partido **nadie** puede pronosticarlo. En **Admin → Resultados
 reales → cada partido** hay un desplegable **"👥 Participantes"** con la lista de usuarios
-aprobados; el admin marca quién participa en ese partido. La tabla `partido_usuario`
-(con RLS) guarda esas activaciones, y `pred_partidos` solo acepta el pronóstico de un
-usuario si está activado para ese partido (además de estar aprobado y no haber cerrado).
+aprobados; el admin elige, por cada uno, **No participa / 1 pronóstico / 2 pronósticos**.
+La tabla `partido_usuario` (con RLS) guarda esas activaciones y su `n_pred`, y `pred_partidos`
+solo acepta el pronóstico de un usuario si su slot está dentro de su cupo (además de estar
+aprobado y no haber cerrado).
+
+## 🛡️ Varios administradores
+Puede haber **más de un administrador**. En **Admin → Usuarios** cada usuario tiene un botón
+**"Hacer admin"** / **"Quitar admin"**. No te puedes quitar el admin a ti mismo (evita quedarte
+sin acceso). A nivel de base de datos no hace falta nada extra: la columna `profiles.is_admin`,
+la política `perfil admin update` y el trigger `protect_profile_fields` ya permiten que **solo un
+admin** promueva a otros (un usuario normal no puede auto-promoverse).
 
 ## 🎯 Doble marcador
 `pred_partidos` tiene una columna `slot` (1 o 2): cada usuario puede guardar hasta dos

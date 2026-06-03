@@ -112,10 +112,11 @@
 .admin-partido-main .fch{flex-basis:100%; color:var(--muted); font-size:.72rem}
 .part-box{margin-top:.4rem}
 .part-box summary{font-size:.8rem; margin-bottom:.3rem}
-.part-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:.25rem .8rem;
+.part-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.3rem .8rem;
   padding:.4rem .2rem .2rem}
 .part-chk{display:flex; align-items:center; gap:.4rem; font-size:.82rem; cursor:pointer}
 .part-chk input{width:auto; margin:0}
+.part-chk select{width:auto; margin:0; padding:.2rem .35rem; font-size:.76rem; flex:0 0 auto}
 /* Equipos editables en llaves (admin): bandera + input */
 .admin-partido-main .team-edit-wrap{display:flex; align-items:center; gap:.35rem}
 .admin-partido-main .team-edit{flex:1; min-width:70px; width:auto; margin-top:0; padding:.4rem .5rem;
