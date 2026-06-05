@@ -814,6 +814,38 @@ async function guardarResultado(id) {
   await propagarLlaves();     // alimenta las llaves automáticamente
   renderAdminPartidos();
 }
+// Pone TODOS los resultados reales a cero: limpia marcadores (gol_local/visitante
+// = null) y desempates (res_bracket), las llaves vuelven a "Por definir". NO toca
+// las predicciones de los usuarios (pred_partidos) ni sus derivados.
+async function resetResultadosReales() {
+  if (!S.profile?.is_admin) return;
+  const m = $("#resetResultadosMsg");
+  if (!confirm("¿Poner TODOS los resultados reales a cero?\n\n" +
+    "Se borrarán todos los marcadores y desempates reales (las llaves vuelven a " +
+    "\"Por definir\"). Las quinielas de los usuarios NO se tocan.\n\n" +
+    "Esta acción no se puede deshacer.")) return;
+  const btn = $("#resetResultadosBtn"); if (btn) btn.disabled = true;
+  try {
+    // Limpia marcadores reales en todos los partidos (filtro que matchea todo).
+    const { error: e1 } = await sb.from("partidos")
+      .update({ gol_local: null, gol_visitante: null }).not("id", "is", null);
+    if (e1) throw e1;
+    // Borra los desempates manuales de llaves (penales/prórroga).
+    const { error: e2 } = await sb.from("res_bracket").delete().not("match_no", "is", null);
+    if (e2) throw e2;
+    S.realWinners = {};
+    await cargarPartidos();
+    await propagarLlaves();     // recalcula: sin resultados, las llaves quedan "Por definir"
+    renderAdminPartidos();
+    msg(m, "✅ Resultados reales puestos a cero.", true);
+  } catch (e) {
+    msg(m, "Error: " + e.message, false);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+{ const b = $("#resetResultadosBtn"); if (b) b.onclick = resetResultadosReales; }
+
 $("#importBtn").onclick = async () => {
   const txt = $("#importBox").value.trim(); if (!txt) return;
   const rows = txt.split("\n").map((l) => l.split("|").map((c) => c.trim())).filter((c) => c.length >= 5);

@@ -181,6 +181,7 @@ input[type=number]{width:60px; text-align:center; padding:.5rem .35rem; font-wei
 /* ---------- Admin ---------- */
 .admin .partido input{width:54px}
 .admin-import textarea{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.82rem; background:var(--panel2)}
+.admin-reset{display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin:.4rem 0 .9rem}
 details summary{cursor:pointer; color:var(--blue); font-weight:700; margin-bottom:.6rem}
 code{background:var(--bg2); padding:.1rem .35rem; border-radius:6px; font-size:.8rem; color:var(--blue)}
 
