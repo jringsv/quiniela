@@ -162,3 +162,14 @@
 .badge-admin{background:rgba(10,49,97,.12); color:var(--blue)}
 .btn.ghost{background:transparent; border:1px solid var(--line); color:var(--muted)}
 .btn.ghost:hover{border-color:#b4422f; color:#b4422f}
+/* Badge: el usuario tiene un cambio de contraseña pendiente */
+.badge-pwd{font-size:.66rem; padding:.08rem .45rem; border-radius:6px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.03em; background:#fdf0d5; color:#8a5a00;
+  border:1px solid #f0d59a; white-space:nowrap}
+
+/* ---- Modal de cambio de contraseña forzado ---- */
+.modal-overlay{position:fixed; inset:0; z-index:1000; display:flex; align-items:center;
+  justify-content:center; padding:1rem; background:rgba(10,49,97,.55); backdrop-filter:blur(2px)}
+.modal-overlay .modal-card{max-width:380px; width:100%; margin:0; animation:modalIn .18s ease-out}
+.modal-card .field{display:block}
+@keyframes modalIn{from{opacity:0; transform:translateY(8px) scale(.98)} to{opacity:1; transform:none}}

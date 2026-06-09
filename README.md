@@ -62,6 +62,7 @@ Solo el admin queda exceptuado y puede cargar resultados.
    8. [`supabase/migracion_borrar_usuarios.sql`](supabase/migracion_borrar_usuarios.sql) — gestión de usuarios (admin).
    9. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
    10. [`supabase/migracion_npred_por_activacion.sql`](supabase/migracion_npred_por_activacion.sql) — activar con 1 ó 2 pronósticos por usuario/partido.
+   11. [`supabase/migracion_reset_password.sql`](supabase/migracion_reset_password.sql) — el admin resetea contraseñas y obliga al cambio al ingresar.
 
    > Nota: si en algún momento corriste `migracion_pred_inmutable.sql` (descartada), ejecuta
    > [`supabase/migracion_pred_editable.sql`](supabase/migracion_pred_editable.sql) para volver a

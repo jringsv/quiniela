@@ -142,6 +142,30 @@
     </section>
   </main>
 
+  <!-- ===================== CAMBIO DE CONTRASEÑA FORZADO ===================== -->
+  <!-- Se muestra cuando el admin reseteó la contraseña del usuario. Bloquea la
+       app hasta que defina una contraseña nueva. -->
+  <div id="pwdModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pwdTitle">
+    <div class="card modal-card">
+      <h2 id="pwdTitle">🔒 Cambia tu contraseña</h2>
+      <p class="muted">Un administrador reseteó tu contraseña. Por seguridad, define una
+        nueva para poder continuar.</p>
+      <form id="pwdForm" novalidate>
+        <label class="field">Nueva contraseña
+          <div class="pass-wrap">
+            <input type="password" id="pwdNew" placeholder="••••••••" autocomplete="new-password" minlength="6" required />
+            <button type="button" id="pwdToggle" class="pass-toggle" aria-label="Mostrar u ocultar contraseña">👁</button>
+          </div>
+        </label>
+        <label class="field">Repite la contraseña
+          <input type="password" id="pwdConfirm" placeholder="••••••••" autocomplete="new-password" minlength="6" required />
+        </label>
+        <button type="submit" class="btn primary block" id="pwdSubmit">Guardar nueva contraseña</button>
+      </form>
+      <p id="pwdMsg" class="msg" role="alert"></p>
+    </div>
+  </div>
+
   <footer class="foot"><span id="footLock"></span></footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

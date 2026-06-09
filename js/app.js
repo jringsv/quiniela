@@ -119,7 +119,11 @@ sb.auth.onAuthStateChange((_e, session) => {
 });
 
 let _loginEnCurso = false;
+let _cambioForzadoEnCurso = false;   // mientras el modal de cambio de clave está abierto
 async function onLogin() {
+  // Si estamos en pleno cambio de contraseña forzado, el evento USER_UPDATED que
+  // dispara updateUser() no debe reabrir el modal ni recargar: lo controla el modal.
+  if (_cambioForzadoEnCurso) return;
   if (_loginEnCurso || !S.user) return;   // evita ejecuciones simultáneas (INITIAL_SESSION + SIGNED_IN)
   _loginEnCurso = true;
   try {
@@ -140,10 +144,11 @@ async function onLogin() {
     $("#nav").classList.remove("hidden");
     $$(".admin-only").forEach((e) => e.classList.toggle("hidden", !prof?.is_admin));
 
-    await cargarConfigLock();
-    await cargarPartidos();
-    showView("quiniela");   // recarga la quiniela (activación + pronósticos) al entrar
-    iniciarRealtime();
+    // Si el admin reseteó su contraseña, obligamos a cambiarla antes de entrar.
+    // El modal, al terminar con éxito, llama a continuarApp().
+    if (S.profile?.must_change_password) { abrirCambioForzado(); return; }
+
+    await continuarApp();
   } catch (e) {
     // Si algo falla al cargar los datos, mostramos el error en vez de dejar
     // la pantalla trabada en blanco.
@@ -154,8 +159,54 @@ async function onLogin() {
     _loginEnCurso = false;
   }
 }
+// Carga del contenido de la app una vez superado el cambio de contraseña forzado.
+async function continuarApp() {
+  await cargarConfigLock();
+  await cargarPartidos();
+  showView("quiniela");   // recarga la quiniela (activación + pronósticos) al entrar
+  iniciarRealtime();
+}
+
+// ---------- Cambio de contraseña forzado (tras un reseteo del admin) ----------
+function abrirCambioForzado() {
+  const m = $("#pwdModal");
+  if (!m) { continuarApp(); return; }      // sin modal: no bloqueamos la app
+  _cambioForzadoEnCurso = true;
+  $("#pwdNew").value = ""; $("#pwdConfirm").value = "";
+  msg($("#pwdMsg"), "", true);
+  m.classList.remove("hidden");
+  setTimeout(() => $("#pwdNew")?.focus(), 50);
+}
+const _pwt = $("#pwdToggle"); if (_pwt) _pwt.onclick = () => {
+  const inp = $("#pwdNew"); const mostrar = inp.type === "password";
+  inp.type = mostrar ? "text" : "password"; _pwt.textContent = mostrar ? "🙈" : "👁";
+};
+const _pwf = $("#pwdForm"); if (_pwf) _pwf.onsubmit = async (e) => {
+  e.preventDefault();
+  const np = $("#pwdNew").value, conf = $("#pwdConfirm").value, mm = $("#pwdMsg");
+  if (np.length < 6) { msg(mm, "La contraseña debe tener al menos 6 caracteres.", false); return; }
+  if (np !== conf) { msg(mm, "Las contraseñas no coinciden.", false); return; }
+  const btn = $("#pwdSubmit"); btn.disabled = true;
+  try {
+    const { error } = await sb.auth.updateUser({ password: np });
+    if (error) throw error;
+    // Apaga el flag (el trigger permite que el propio usuario lo apague).
+    const { error: e2 } = await sb.from("profiles")
+      .update({ must_change_password: false }).eq("id", S.user.id);
+    if (e2) throw e2;
+    if (S.profile) S.profile.must_change_password = false;
+    $("#pwdModal").classList.add("hidden");
+    msg(mm, "", true);
+    _cambioForzadoEnCurso = false;
+    await continuarApp();
+  } catch (err) {
+    msg(mm, traducirError(err.message), false);
+  } finally { btn.disabled = false; }
+};
 function showAuth() {
+  _cambioForzadoEnCurso = false;
   $("#nav").classList.add("hidden"); $("#logoutBtn").classList.add("hidden"); $("#userName").textContent = "";
+  $("#pwdModal")?.classList.add("hidden");   // por si se cerró sesión con el modal abierto
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-auth").classList.remove("hidden");
 }
@@ -630,14 +681,22 @@ async function renderAdminUsuarios() {
     const prefill = u.nombre_registrado || u.nombre || "";
     // Editar nombre: disponible para CUALQUIER usuario, incluido el admin.
     accion += ` <button class="btn small ghost" data-editar="${u.id}" data-prefill="${esc(prefill)}">Editar nombre</button>`;
+    // Resetear contraseña: cualquier usuario menos uno mismo.
+    if (!esYo) {
+      accion += ` <button class="btn small ghost" data-resetpwd="${u.id}" data-nombre="${esc(u.nombre)}">🔑 Resetear contraseña</button>`;
+    }
     // Borrar: solo usuarios que no sean admin y que no sean uno mismo.
     if (!u.is_admin && !esYo) {
       accion += ` <button class="btn small danger" data-borrar="${u.id}" data-nombre="${esc(u.nombre)}" data-npred="${u.n_predicciones || 0}">Borrar</button>`;
     }
+    // Aviso de que tiene un cambio de contraseña pendiente (reseteada por el admin).
+    const pwdBadge = u.must_change_password
+      ? '<span class="badge-pwd" title="El usuario debe cambiar su contraseña al ingresar.">🔑 cambio pendiente</span>'
+      : "";
     html += `<div class="user-row ${u.aprobado || u.is_admin ? "" : "pend"}">
       <span class="u-nombre">${u.nombre || "(sin nombre)"}${esYo ? " (tú)" : ""}
         <span class="u-email">${u.email || ""}</span></span>
-      ${estado}
+      ${estado}${pwdBadge}
       <span class="u-accion">${accion}</span>
     </div>`;
   });
@@ -651,6 +710,8 @@ async function renderAdminUsuarios() {
     (b.onclick = () => editarNombreUsuario(b.dataset.editar, b.dataset.prefill)));
   cont.querySelectorAll("[data-borrar]").forEach((b) =>
     (b.onclick = () => borrarUsuario(b.dataset.borrar, b.dataset.nombre, +b.dataset.npred)));
+  cont.querySelectorAll("[data-resetpwd]").forEach((b) =>
+    (b.onclick = () => resetearPassword(b.dataset.resetpwd, b.dataset.nombre)));
   cont.querySelectorAll("[data-haceradmin]").forEach((b) =>
     (b.onclick = () => setAdmin(b.dataset.haceradmin, true, b.dataset.nombre)));
   cont.querySelectorAll("[data-quitaradmin]").forEach((b) =>
@@ -692,6 +753,31 @@ async function borrarUsuario(id, nombre, nPred) {
   if (!confirm(`¿Borrar a "${nombre || "este usuario"}"?\n\n${aviso}\nEsta acción NO se puede deshacer.`)) return;
   const { error } = await sb.rpc("admin_delete_user", { uid: id });
   if (error) { alert("Error al borrar: " + error.message); return; }
+  await renderAdminUsuarios();
+}
+// Genera una contraseña temporal legible (sin caracteres ambiguos como O/0, l/1).
+function genPasswordTemporal() {
+  const may = "ABCDEFGHJKLMNPQRSTUVWXYZ", min = "abcdefghijkmnpqrstuvwxyz", num = "23456789";
+  const tomar = (s, n) => Array.from({ length: n }, () => s[Math.floor(Math.random() * s.length)]).join("");
+  return tomar(may, 2) + tomar(min, 3) + tomar(num, 4);
+}
+// El admin asigna una contraseña temporal; al ingresar, el usuario deberá cambiarla.
+async function resetearPassword(id, nombre) {
+  const quien = nombre || "este usuario";
+  let pass = prompt(
+    `Nueva contraseña temporal para "${quien}" (mín. 6 caracteres).\n` +
+    `Deja el campo vacío para generar una automáticamente:`, "");
+  if (pass === null) return;                       // canceló
+  pass = pass.trim();
+  if (pass && pass.length < 6) { alert("La contraseña debe tener al menos 6 caracteres."); return; }
+  if (!pass) pass = genPasswordTemporal();
+  const { error } = await sb.rpc("admin_reset_password", { uid: id, new_password: pass });
+  if (error) { alert("Error al resetear: " + error.message); return; }
+  // Mostramos la contraseña temporal para que el admin se la comunique al usuario.
+  alert(
+    `✅ Contraseña reseteada para "${quien}".\n\n` +
+    `Contraseña temporal:\n\n    ${pass}\n\n` +
+    `Compártela con la persona. Al iniciar sesión se le pedirá definir una nueva.`);
   await renderAdminUsuarios();
 }
 // Números de partido de eliminatoria (73..104), en orden de ronda.
