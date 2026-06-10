@@ -18,6 +18,9 @@ const S = {
   activos: new Map(),      // partido_id -> n_pred (1 ó 2) donde el admin activó a este usuario
   realWinners: {},         // bracket real (res_bracket)
   authMode: "login",
+  clockOffset: 0,          // ms a sumar a Date.now() para igualar la hora del servidor
+  cerradosForzados: new Set(), // partido_id que el backend ya confirmó como cerrados
+  pronCerrados: new Map(), // partido_id -> [pronósticos de todos] (solo partidos cerrados)
 };
 
 const FASES_AVANCE = ["16avos", "8vos", "4tos", "semis"];
@@ -162,6 +165,7 @@ async function onLogin() {
 // Carga del contenido de la app una vez superado el cambio de contraseña forzado.
 async function continuarApp() {
   await cargarConfigLock();
+  await syncReloj();          // ajusta el reloj a la hora del servidor antes de evaluar cierres
   await cargarPartidos();
   showView("quiniela");   // recarga la quiniela (activación + pronósticos) al entrar
   iniciarRealtime();
@@ -243,17 +247,37 @@ function cargarConfigLock() {
   const fl = $("#footLock");
   if (fl) fl.textContent = "Cada partido cierra " + LOCK_MIN + " min antes de empezar (hora El Salvador).";
 }
+// Hora actual SEGÚN EL SERVIDOR (corrige el reloj del navegador si está desfasado).
+const nowMs = () => Date.now() + (S.clockOffset || 0);
+// Sincroniza el reloj con el servidor de Supabase: calcula cuántos ms de
+// diferencia hay y los guarda en S.clockOffset. Si falla, usa el reloj local.
+async function syncReloj() {
+  try {
+    const t0 = Date.now();
+    const { data, error } = await sb.rpc("server_now");
+    if (error || !data) return;
+    const t1 = Date.now();
+    const serverMs = new Date(data).getTime();
+    S.clockOffset = serverMs - (t0 + (t1 - t0) / 2);   // compensa medio round-trip
+  } catch { /* sin sincronizar: seguimos con el reloj local */ }
+}
 // ¿Ya cerró este partido? (now >= hora_del_partido - 15 min). Sin fecha => abierto.
 function partidoBloqueado(p) {
-  if (!p || !p.fecha) return false;
-  return Date.now() >= new Date(p.fecha).getTime() - LOCK_MIN * 60000;
+  if (!p) return false;
+  // Si el backend ya rechazó un guardado por cierre, lo respetamos siempre.
+  if (S.cerradosForzados && S.cerradosForzados.has(p.id)) return true;
+  if (!p.fecha) return false;
+  return nowMs() >= new Date(p.fecha).getTime() - LOCK_MIN * 60000;
 }
 // Para participar (guardar): ser admin, o estar APROBADO. El cierre por tiempo
 // es por partido (ver partidoBloqueado / puedeEditarMarcador).
 const estaAprobado = () => !!(S.profile?.is_admin || S.profile?.aprobado);
 const puedeEditar = () => !!(S.profile?.is_admin || estaAprobado());
 // ¿Puede editar el marcador de ESTE partido ahora mismo?
-const puedeEditarMarcador = (p) => S.profile?.is_admin || (estaAprobado() && !partidoBloqueado(p));
+// El cierre por tiempo aplica a TODOS, incluido el admin: el admin también es un
+// participante con su propia cuenta y no debe editar su quiniela tras el cierre.
+// (Su rol de admin solo lo exime para cargar resultados/activar, no para jugar.)
+const puedeEditarMarcador = (p) => estaAprobado() && !partidoBloqueado(p);
 
 // ============================================================
 //  DATOS
@@ -296,52 +320,39 @@ function renderQuiniela() {
   renderMarcadores();
   cargarPronosticosCerrados();
 }
-// Muestra, para cada partido YA CERRADO, el marcador que pronosticó cada
-// persona. El backend (get_pronosticos_bloqueados) solo devuelve partidos
+// Trae los pronósticos de TODOS para los partidos ya cerrados y los guarda en
+// S.pronCerrados (agrupados por partido). Luego re-pinta los marcadores para que
+// cada bloque aparezca debajo de su partido. El backend solo devuelve partidos
 // cerrados, así que nadie puede espiar antes de tiempo.
 async function cargarPronosticosCerrados() {
-  const cont = $("#pronosticosCerrados"); if (!cont) return;
   const { data, error } = await sb.rpc("get_pronosticos_bloqueados");
-  if (error) { cont.innerHTML = `<p class="muted">Error: ${esc(error.message)}</p>`; return; }
-  if (!data?.length) {
-    cont.innerHTML = '<p class="muted">Todavía no hay partidos cerrados. Aparecerán aquí 15 minutos antes de empezar.</p>';
-    return;
+  S.pronCerrados = new Map();
+  if (!error) {
+    (data || []).forEach((r) => {
+      if (!S.pronCerrados.has(r.partido_id)) S.pronCerrados.set(r.partido_id, []);
+      S.pronCerrados.get(r.partido_id).push(r);
+    });
   }
+  renderMarcadores();   // re-pinta con los pronósticos debajo de cada partido
+}
+// Bloque compacto (letra pequeña) con los pronósticos de todos para UN partido
+// ya cerrado. Vacío si el partido no ha cerrado o nadie pronosticó.
+function bloquePronosticosCerrados(p) {
+  if (!partidoBloqueado(p)) return "";
+  const preds = S.pronCerrados.get(p.id) || [];
+  if (!preds.length) return "";
   const yo = (S.profile?.nombre || "").trim();
-  // Agrupamos las filas (una por pronóstico) por partido, conservando el orden.
-  const porPartido = new Map();
-  data.forEach((r) => {
-    if (!porPartido.has(r.partido_id)) porPartido.set(r.partido_id, { info: r, preds: [] });
-    porPartido.get(r.partido_id).preds.push(r);
-  });
-  let html = "";
-  porPartido.forEach(({ info, preds }) => {
-    const seccion = info.fase === "grupos" ? "Grupo " + (info.grupo || "?") : fmtFase(info.fase);
-    const hayReal = info.gol_local_real != null && info.gol_visitante_real != null;
-    const realHtml = hayReal
-      ? `<span class="pc-real">Resultado: <strong>${info.gol_local_real} - ${info.gol_visitante_real}</strong></span>`
-      : `<span class="pc-pend">Aún no jugado</span>`;
-    const filas = preds.map((p) =>
-      `<li class="${p.nombre === yo ? "me" : ""} ${p.acerto ? "ok" : ""}">
-         <span class="pc-nombre">${esc(p.nombre)}${preds.filter((x) => x.nombre === p.nombre).length > 1 ? ` · P${p.slot}` : ""}</span>
-         <span class="pc-marc">${p.pred_local} - ${p.pred_visitante}${p.acerto ? " ✅" : ""}</span>
-       </li>`).join("");
-    html += `
-      <div class="pc-card">
-        <div class="pc-head">
-          <span class="pc-sec">#${info.numero ?? "?"} · ${esc(seccion)}</span>
-          <span class="pc-fecha">${fmtFecha(info.fecha)}</span>
-        </div>
-        <div class="pc-match">
-          <span class="eq">${teamRow(info.equipo_local)}</span>
-          <span class="vs">vs</span>
-          <span class="eq v">${teamRow(info.equipo_visitante)}</span>
-        </div>
-        <div class="pc-realbox">${realHtml}</div>
-        <ul class="pc-list">${filas}</ul>
-      </div>`;
-  });
-  cont.innerHTML = html;
+  const lis = preds.map((r) => {
+    const dup = preds.filter((x) => x.nombre === r.nombre).length > 1;   // tiene 2 pronósticos
+    return `<li class="${r.nombre === yo ? "me" : ""}${r.acerto ? " ok" : ""}">
+        <span class="pcm-nom">${esc(r.nombre)}${dup ? ` · P${r.slot}` : ""}</span>
+        <span class="pcm-mar">${r.pred_local}-${r.pred_visitante}${r.acerto ? " ✅" : ""}</span>
+      </li>`;
+  }).join("");
+  return `<div class="pron-cerrados-mini">
+      <div class="pcm-title">🔒 Pronósticos de todos</div>
+      <ul>${lis}</ul>
+    </div>`;
 }
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
 // ordenados por fecha (los sin fecha al final) y luego por número.
@@ -393,7 +404,7 @@ function renderMarcadores() {
 }
 function filaMarcador(p) {
   const aplica = p.aplica_quiniela !== false;
-  const cerrado = partidoBloqueado(p) && !S.profile?.is_admin;
+  const cerrado = partidoBloqueado(p);   // el cierre por tiempo aplica también al admin
   const editable = puedeEditarMarcador(p) && estaActivo(p);   // editable hasta 15 min antes
   const row = document.createElement("div");
   row.className = "partido2" + (aplica ? "" : " no-aplica") + (cerrado ? " cerrado" : "");
@@ -430,7 +441,8 @@ function filaMarcador(p) {
       ${tag}${lockTag}${npTag}
     </div>
     <div class="partido2-prons">${pronsHtml}</div>
-    <div class="pron-actions">${acciones}</div>`;
+    <div class="pron-actions">${acciones}</div>
+    ${bloquePronosticosCerrados(p)}`;
   row.querySelectorAll("input").forEach((i) => {
     i.disabled = !editable || (+i.dataset.slot > np);   // slot fuera del cupo => bloqueado
     i.oninput = () => {
@@ -469,10 +481,18 @@ async function guardarPartido(p, btn, msgEl) {
     msg(msgEl, rows.length ? "✅ Guardado." : "Pronóstico borrado.", true);
   } catch (e) {
     // El backend (RLS con partido_locked) rechaza guardar después del cierre.
-    // Detectamos ese caso para dar un mensaje claro y refrescar el estado.
     if (esErrorDeCierre(e) || partidoBloqueado(p)) {
+      // El servidor manda: marcamos el partido como cerrado (aunque el reloj del
+      // navegador vaya atrasado) y bloqueamos ESTA fila en el sitio, sin re-render,
+      // para que el mensaje quede visible y los campos se deshabiliten al instante.
+      (S.cerradosForzados ||= new Set()).add(p.id);
+      const fila = btn.closest(".partido2");
+      if (fila) {
+        fila.classList.add("cerrado");
+        fila.querySelectorAll("input").forEach((i) => (i.disabled = true));
+      }
+      btn.style.display = "none";
       msg(msgEl, "⏱️ Este partido ya cerró (15 min antes de empezar). Ya no se puede modificar.", false);
-      cargarMiQuiniela().then(renderQuiniela);   // re-pinta el partido como cerrado 🔒
     } else {
       msg(msgEl, "Error: " + e.message, false);
     }

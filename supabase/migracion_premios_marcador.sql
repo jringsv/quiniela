@@ -3,10 +3,11 @@
 --  PREMIOS EN DINERO POR MARCADOR EXACTO
 --
 --  Regla:
---   - Por cada partido se recauda $1 por CADA marcador que la persona haya
---     METIDO (no vacío); cada slot cuenta, así que un usuario con 2 pronósticos
---     aporta $2. NO importa si el partido "aplica" (casilla 3/1) o no: lo único
---     que cuenta para el bote es que el marcador esté lleno.
+--   - Se recauda $1 por CADA marcador que cumpla DOS condiciones: que la persona
+--     esté marcada como PARTICIPANTE de ese partido (partido_usuario) y que haya
+--     METIDO el marcador (no vacío). Cada slot cuenta, así que un participante con
+--     2 pronósticos aporta $2. (Esto excluye pronósticos que un admin haya guardado
+--     en partidos donde no es participante.) NO importa si el partido "aplica" (3/1).
 --   - El premio del partido es el 75% de lo recaudado en ESE partido.
 --   - Ganan quienes acertaron el marcador EXACTO (goles local y visitante).
 --   - Si hay más de un ganador, ese 75% se reparte en partes iguales.
@@ -43,11 +44,15 @@ returns table (
 )
 language sql stable security definer set search_path = public as $$
   with elegibles as (
-    -- Solo cuentan las predicciones de usuarios autorizados (igual que la
-    -- tabla de posiciones). Cada fila es un pronóstico digitado = $1.
+    -- Cuenta un marcador SOLO si la persona: (1) está autorizada,
+    -- (2) está marcada como PARTICIPANTE de ese partido (partido_usuario) y
+    -- (3) digitó el marcador (cada fila de pred_partidos = un marcador = $1).
+    -- El join con partido_usuario es clave: excluye los pronósticos que un
+    -- admin haya guardado en partidos donde NO fue activado como participante.
     select pp.partido_id, pp.user_id, pp.gol_local, pp.gol_visitante
     from pred_partidos pp
-    join profiles pr on pr.id = pp.user_id and (pr.aprobado or pr.is_admin)
+    join profiles pr        on pr.id = pp.user_id and (pr.aprobado or pr.is_admin)
+    join partido_usuario pu on pu.partido_id = pp.partido_id and pu.user_id = pp.user_id
   ),
   jugados as (
     -- CUALQUIER partido ya jugado (con resultado real), SIN importar si "aplica"
