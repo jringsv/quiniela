@@ -14,6 +14,7 @@
       <button data-view="quiniela" class="tab active">Mi quiniela</button>
       <button data-view="mundial" class="tab">Mundial (real)</button>
       <button data-view="dashboard" class="tab">Posiciones</button>
+      <button data-view="premios" class="tab">Premios 💰</button>
       <button data-view="admin" class="tab admin-only hidden">Admin</button>
     </nav>
     <div class="user-box">
@@ -102,6 +103,19 @@
           <tbody id="leaderboardBody"></tbody>
         </table>
         <p class="muted small">Premios para los 3 primeros lugares 🥇🥈🥉</p>
+      </div>
+    </section>
+
+    <!-- ===================== PREMIOS ===================== -->
+    <section id="view-premios" class="view hidden">
+      <div class="card">
+        <h2>💰 Premios por marcador exacto <span class="live">● en vivo</span></h2>
+        <p class="muted">Cada partido recauda <strong>$1 por cada pronóstico digitado</strong> (si tienes
+          dos pronósticos en un partido, aportas $2). El <strong>75%</strong> de lo recaudado en ese partido
+          se reparte <strong>en partes iguales</strong> entre quienes acertaron el <strong>marcador
+          exacto</strong>. Si nadie acierta, no hay ganador en ese partido.</p>
+        <div id="premiosResumen" class="premios-resumen"></div>
+        <div id="premiosList" class="premios"></div>
       </div>
     </section>
 

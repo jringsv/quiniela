@@ -224,6 +224,7 @@ function showView(name) {
   if (name === "quiniela") cargarMiQuiniela().then(renderQuiniela);
   if (name === "mundial") renderMundialReal();
   if (name === "dashboard") cargarLeaderboard();
+  if (name === "premios") cargarPremios();
   if (name === "admin") renderAdmin();
 }
 
@@ -586,12 +587,69 @@ async function cargarLeaderboard() {
       <td>${r.pts_partidos}</td><td class="total">${r.total}</td></tr>`;
   }).join("");
 }
+// ============================================================
+//  VISTA: PREMIOS (dinero por marcador exacto)
+// ============================================================
+const money = (n) => "$" + Number(n || 0).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+async function cargarPremios() {
+  const cont = $("#premiosList"), res = $("#premiosResumen");
+  const { data, error } = await sb.rpc("get_premios_marcador");
+  if (error) {
+    res.innerHTML = "";
+    cont.innerHTML = `<p class="muted">Error: ${esc(error.message)}</p>`;
+    return;
+  }
+  if (!data?.length) {
+    res.innerHTML = "";
+    cont.innerHTML = '<p class="muted">Aún no hay partidos con resultado y pronósticos cargados.</p>';
+    return;
+  }
+  // Resumen global: total repartido y total recaudado.
+  const totRepartido = data.reduce((a, r) => a + (r.n_ganadores > 0 ? Number(r.premio_total) : 0), 0);
+  const totBote = data.reduce((a, r) => a + Number(r.bote), 0);
+  res.innerHTML = `
+    <div class="premio-stat"><span class="big">${money(totRepartido)}</span><span class="lbl">repartido en premios</span></div>
+    <div class="premio-stat"><span class="big">${money(totBote)}</span><span class="lbl">recaudado en total</span></div>
+    <div class="premio-stat"><span class="big">${data.length}</span><span class="lbl">partidos con resultado</span></div>`;
+
+  cont.innerHTML = data.map((r) => {
+    const yo = (S.profile?.nombre || "").trim();
+    const ganadores = r.ganadores || [];
+    const hayGan = r.n_ganadores > 0;
+    const seccion = r.fase === "grupos" ? "Grupo " + (r.grupo || "?") : fmtFase(r.fase);
+    const ganHtml = hayGan
+      ? `<ul class="premio-ganadores">${ganadores.map((nm) =>
+          `<li class="${nm === yo ? "me" : ""}"><span class="g-nombre">🏅 ${esc(nm)}</span>
+             <span class="g-monto">${money(r.premio_por_ganador)}</span></li>`).join("")}</ul>`
+      : `<p class="premio-sin">Nadie acertó el marcador exacto. El premio (${money(r.premio_total)}) no se reparte.</p>`;
+    return `
+      <div class="premio-card ${hayGan ? "" : "sin"}">
+        <div class="premio-head">
+          <span class="premio-sec">#${r.numero ?? "?"} · ${esc(seccion)}</span>
+          <span class="premio-fecha">${fmtFecha(r.fecha)}</span>
+        </div>
+        <div class="premio-match">
+          <span class="eq">${teamRow(r.equipo_local)}</span>
+          <span class="premio-score">${r.gol_local} - ${r.gol_visitante}</span>
+          <span class="eq v">${teamRow(r.equipo_visitante)}</span>
+        </div>
+        <div class="premio-info">
+          <span title="${r.n_pronosticos} pronóstico(s) × $1">🎟️ Recaudado: <strong>${money(r.bote)}</strong></span>
+          <span>💰 Premio (75%): <strong>${money(r.premio_total)}</strong></span>
+          <span>🏆 Ganadores: <strong>${r.n_ganadores}</strong></span>
+        </div>
+        ${ganHtml}
+      </div>`;
+  }).join("");
+}
+
 function iniciarRealtime() {
   if (S._channel) return;
   const refrescar = () => {
     cargarPartidos().then(() => {
       if (!$("#view-dashboard").classList.contains("hidden")) cargarLeaderboard();
       if (!$("#view-mundial").classList.contains("hidden")) renderMundialReal();
+      if (!$("#view-premios").classList.contains("hidden")) cargarPremios();
     });
   };
   // Si el admin cambia mi activación/cupo, refresca mi quiniela si la tengo abierta.
