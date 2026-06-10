@@ -294,6 +294,54 @@ function numToId(num) { const p = S.partidos.find((x) => x.numero === num); retu
 function renderQuiniela() {
   renderApprovalBanner();
   renderMarcadores();
+  cargarPronosticosCerrados();
+}
+// Muestra, para cada partido YA CERRADO, el marcador que pronosticó cada
+// persona. El backend (get_pronosticos_bloqueados) solo devuelve partidos
+// cerrados, así que nadie puede espiar antes de tiempo.
+async function cargarPronosticosCerrados() {
+  const cont = $("#pronosticosCerrados"); if (!cont) return;
+  const { data, error } = await sb.rpc("get_pronosticos_bloqueados");
+  if (error) { cont.innerHTML = `<p class="muted">Error: ${esc(error.message)}</p>`; return; }
+  if (!data?.length) {
+    cont.innerHTML = '<p class="muted">Todavía no hay partidos cerrados. Aparecerán aquí 15 minutos antes de empezar.</p>';
+    return;
+  }
+  const yo = (S.profile?.nombre || "").trim();
+  // Agrupamos las filas (una por pronóstico) por partido, conservando el orden.
+  const porPartido = new Map();
+  data.forEach((r) => {
+    if (!porPartido.has(r.partido_id)) porPartido.set(r.partido_id, { info: r, preds: [] });
+    porPartido.get(r.partido_id).preds.push(r);
+  });
+  let html = "";
+  porPartido.forEach(({ info, preds }) => {
+    const seccion = info.fase === "grupos" ? "Grupo " + (info.grupo || "?") : fmtFase(info.fase);
+    const hayReal = info.gol_local_real != null && info.gol_visitante_real != null;
+    const realHtml = hayReal
+      ? `<span class="pc-real">Resultado: <strong>${info.gol_local_real} - ${info.gol_visitante_real}</strong></span>`
+      : `<span class="pc-pend">Aún no jugado</span>`;
+    const filas = preds.map((p) =>
+      `<li class="${p.nombre === yo ? "me" : ""} ${p.acerto ? "ok" : ""}">
+         <span class="pc-nombre">${esc(p.nombre)}${preds.filter((x) => x.nombre === p.nombre).length > 1 ? ` · P${p.slot}` : ""}</span>
+         <span class="pc-marc">${p.pred_local} - ${p.pred_visitante}${p.acerto ? " ✅" : ""}</span>
+       </li>`).join("");
+    html += `
+      <div class="pc-card">
+        <div class="pc-head">
+          <span class="pc-sec">#${info.numero ?? "?"} · ${esc(seccion)}</span>
+          <span class="pc-fecha">${fmtFecha(info.fecha)}</span>
+        </div>
+        <div class="pc-match">
+          <span class="eq">${teamRow(info.equipo_local)}</span>
+          <span class="vs">vs</span>
+          <span class="eq v">${teamRow(info.equipo_visitante)}</span>
+        </div>
+        <div class="pc-realbox">${realHtml}</div>
+        <ul class="pc-list">${filas}</ul>
+      </div>`;
+  });
+  cont.innerHTML = html;
 }
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
 // ordenados por fecha (los sin fecha al final) y luego por número.
@@ -419,11 +467,24 @@ async function guardarPartido(p, btn, msgEl) {
       ({ user_id: S.user.id, partido_id: p.id, slot: +slot, gol_local: s.gl, gol_visitante: s.gv }));
     if (rows.length) { const { error } = await sb.from("pred_partidos").insert(rows); if (error) throw error; }
     msg(msgEl, rows.length ? "✅ Guardado." : "Pronóstico borrado.", true);
-  } catch (e) { msg(msgEl, "Error: " + e.message, false); }
+  } catch (e) {
+    // El backend (RLS con partido_locked) rechaza guardar después del cierre.
+    // Detectamos ese caso para dar un mensaje claro y refrescar el estado.
+    if (esErrorDeCierre(e) || partidoBloqueado(p)) {
+      msg(msgEl, "⏱️ Este partido ya cerró (15 min antes de empezar). Ya no se puede modificar.", false);
+      cargarMiQuiniela().then(renderQuiniela);   // re-pinta el partido como cerrado 🔒
+    } else {
+      msg(msgEl, "Error: " + e.message, false);
+    }
+  }
   finally { btn.disabled = !editableMarcadorAhora(p); }
 }
 // ¿El usuario puede guardar este marcador ahora? (aprobado/admin + activado + no cerrado)
 const editableMarcadorAhora = (p) => puedeEditar() && puedeEditarMarcador(p) && estaActivo(p);
+// ¿El error de Supabase viene del RLS (típicamente, partido ya cerrado)?
+// Código 42501 = insufficient_privilege; el mensaje menciona "row-level security".
+const esErrorDeCierre = (e) =>
+  e?.code === "42501" || /row-level security|violates row-level/i.test(e?.message || "");
 
 // ============================================================
 //  TABLAS DE GRUPO + TERCEROS
@@ -656,6 +717,14 @@ function iniciarRealtime() {
   const refrescarQuiniela = () => {
     if (!$("#view-quiniela").classList.contains("hidden")) cargarMiQuiniela().then(renderQuiniela);
   };
+  // El cierre es por TIEMPO (15 min antes) y no genera evento en la BD; por eso
+  // revisamos cada 30 s: re-pintamos la quiniela para mostrar los 🔒 y exponer
+  // los pronósticos de los partidos que acaban de cerrar.
+  if (!S._lockTimer) {
+    S._lockTimer = setInterval(() => {
+      if (!$("#view-quiniela").classList.contains("hidden")) renderQuiniela();
+    }, 30000);
+  }
   S._channel = sb.channel("quiniela-live")
     .on("postgres_changes", { event: "*", schema: "public", table: "partidos" }, () => { refrescar(); refrescarQuiniela(); })
     .on("postgres_changes", { event: "*", schema: "public", table: "partido_usuario" }, refrescarQuiniela)

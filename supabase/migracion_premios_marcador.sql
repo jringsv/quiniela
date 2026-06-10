@@ -3,8 +3,10 @@
 --  PREMIOS EN DINERO POR MARCADOR EXACTO
 --
 --  Regla:
---   - Por cada partido se recauda $1 por CADA pronóstico digitado y
---     bloqueado (cada slot cuenta; un usuario con 2 pronósticos aporta $2).
+--   - Por cada partido se recauda $1 por CADA marcador que la persona haya
+--     METIDO (no vacío); cada slot cuenta, así que un usuario con 2 pronósticos
+--     aporta $2. NO importa si el partido "aplica" (casilla 3/1) o no: lo único
+--     que cuenta para el bote es que el marcador esté lleno.
 --   - El premio del partido es el 75% de lo recaudado en ESE partido.
 --   - Ganan quienes acertaron el marcador EXACTO (goles local y visitante).
 --   - Si hay más de un ganador, ese 75% se reparte en partes iguales.
@@ -48,12 +50,13 @@ language sql stable security definer set search_path = public as $$
     join profiles pr on pr.id = pp.user_id and (pr.aprobado or pr.is_admin)
   ),
   jugados as (
-    -- Partidos que ya tienen resultado real y que otorgan marcador (3/1).
+    -- CUALQUIER partido ya jugado (con resultado real), SIN importar si "aplica"
+    -- para los puntos 3/1. Lo que define el bote es que la persona haya metido su
+    -- marcador (cada fila de pred_partidos es un marcador no vacío = $1).
     select p.id, p.numero, p.fase, p.grupo, p.equipo_local, p.equipo_visitante,
            p.gol_local, p.gol_visitante, p.fecha
     from partidos p
-    where p.aplica_quiniela
-      and p.gol_local is not null
+    where p.gol_local is not null
       and p.gol_visitante is not null
   ),
   bote as (

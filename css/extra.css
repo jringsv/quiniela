@@ -207,3 +207,30 @@
 .premio-ganadores .g-monto{font-weight:800; color:var(--green); white-space:nowrap}
 .premio-ganadores li.me .g-monto{color:var(--red)}
 .premio-sin{margin:0; font-size:.82rem; color:var(--muted); font-style:italic}
+
+/* ============================================================
+   PRONÓSTICOS DE PARTIDOS CERRADOS (debajo de "Mi quiniela")
+   ============================================================ */
+.prons-cerrados{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:.8rem}
+.pc-card{border:1px solid var(--line); border-radius:14px; padding:.7rem .8rem;
+  background:var(--panel); box-shadow:var(--shadow); display:flex; flex-direction:column; gap:.45rem}
+.pc-head{display:flex; justify-content:space-between; align-items:center; gap:.5rem;
+  font-size:.72rem; color:var(--muted)}
+.pc-sec{font-weight:700; color:var(--blue)}
+.pc-match{display:flex; align-items:center; gap:.4rem; font-size:.9rem}
+.pc-match .eq{flex:1; text-align:right; font-weight:700}
+.pc-match .eq.v{text-align:left}
+.pc-match .vs{flex:0 0 auto; color:var(--muted); font-size:.78rem}
+.pc-realbox{font-size:.78rem}
+.pc-real{color:var(--green); font-weight:600}
+.pc-real strong{font-size:.95rem}
+.pc-pend{color:var(--muted); font-style:italic}
+.pc-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.25rem;
+  border-top:1px dashed var(--line2); padding-top:.45rem}
+.pc-list li{display:flex; justify-content:space-between; align-items:center; gap:.5rem;
+  padding:.25rem .45rem; border-radius:8px; font-size:.84rem; background:var(--bg2)}
+.pc-list li.ok{background:rgba(0,104,71,.12); border:1px solid rgba(0,104,71,.25)}
+.pc-list li.me{outline:2px solid rgba(213,43,30,.35)}
+.pc-nombre{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pc-marc{font-weight:800; white-space:nowrap; color:var(--ink)}
+.pc-list li.ok .pc-marc{color:var(--green)}
