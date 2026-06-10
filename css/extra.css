@@ -224,3 +224,12 @@
 .pcm-nom{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink)}
 .pcm-mar{font-weight:800; white-space:nowrap; color:var(--ink)}
 .pron-cerrados-mini li.ok .pcm-mar{color:var(--green)}
+
+/* ============================================================
+   NOMBRES DE JUGADOR SIEMPRE EN MAYÚSCULAS (solo visual)
+   ============================================================ */
+.leaderboard td:nth-child(2),   /* columna "Jugador" de la tabla de posiciones */
+.g-nombre,                       /* ganadores en la vista Premios */
+.pcm-nom{                        /* pronósticos de todos (debajo de cada partido) */
+  text-transform:uppercase;
+}
