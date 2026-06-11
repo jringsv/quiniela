@@ -49,6 +49,14 @@ function fmtFecha(iso) {
     timeZone: "America/El_Salvador",
   });
 }
+// Fecha+hora "amigable" para la confirmación de guardado: "11 jun a las 02:30 p. m."
+function fmtGuardado(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const fecha = d.toLocaleDateString("es-SV", { day: "2-digit", month: "short", timeZone: "America/El_Salvador" });
+  const hora = d.toLocaleTimeString("es-SV", { hour: "2-digit", minute: "2-digit", timeZone: "America/El_Salvador" });
+  return `${fecha} a las ${hora}`;
+}
 function msg(el, text, ok = true) {
   if (!el) return;
   el.textContent = text; el.className = "msg " + (ok ? "ok" : "err");
@@ -288,7 +296,7 @@ async function cargarPartidos() {
   S.partidos = data || [];
 }
 async function cargarMiQuiniela() {
-  S.scores = {}; S.activos = new Map();
+  S.scores = {}; S.activos = new Map(); S.savedAt = {};   // savedAt: numero -> última fecha guardada
   const [{ data: preds }, { data: act }] = await Promise.all([
     sb.from("pred_partidos").select("*").eq("user_id", S.user.id),
     sb.from("partido_usuario").select("partido_id,n_pred").eq("user_id", S.user.id),
@@ -296,6 +304,8 @@ async function cargarMiQuiniela() {
   (preds || []).forEach((p) => {
     const n = mapIdToNum(p.partido_id);
     (S.scores[n] ||= {})[p.slot || 1] = { gl: p.gol_local, gv: p.gol_visitante };
+    // Guarda la edición MÁS reciente entre los dos slots de este partido.
+    if (p.updated_at && (!S.savedAt[n] || new Date(p.updated_at) > new Date(S.savedAt[n]))) S.savedAt[n] = p.updated_at;
   });
   (act || []).forEach((a) => S.activos.set(a.partido_id, a.n_pred || 2));
 }
@@ -355,9 +365,18 @@ function bloquePronosticosCerrados(p) {
   }).join("");
   // Si aún no cierra y solo lo ve el admin, lo indicamos para evitar confusiones.
   const title = cerrado ? "🔒 Pronósticos de todos" : "👁️ Pronósticos de todos (vista admin · aún abierto)";
+  // Pie de auditoría: la edición más reciente de este partido y quién la registró.
+  const conFecha = preds.filter((r) => r.actualizado_en);
+  const ult = conFecha.length
+    ? conFecha.reduce((a, b) => (new Date(b.actualizado_en) > new Date(a.actualizado_en) ? b : a))
+    : null;
+  const footer = ult
+    ? `<div class="pcm-foot">🕒 Última actualización: ${fmtFecha(ult.actualizado_en)} · por <strong>${esc(ult.nombre)}</strong></div>`
+    : "";
   return `<div class="pron-cerrados-mini${cerrado ? "" : " admin-peek"}">
       <div class="pcm-title">${title}</div>
       <ul>${lis}</ul>
+      ${footer}
     </div>`;
 }
 // Partidos en los que el usuario fue activado por el admin (admin ve todos),
@@ -408,6 +427,14 @@ function renderMarcadores() {
     cont.appendChild(filaMarcador(p));
   });
 }
+// Texto persistente de confirmación de guardado para UN partido (o "" si el
+// usuario aún no ha guardado ningún pronóstico en él).
+function guardadoLine(p) {
+  const at = S.savedAt && S.savedAt[p.numero];
+  if (!at) return "";
+  const yo = (S.profile?.nombre || "").trim();
+  return `<span class="pron-guardado">✅ Guardado el ${fmtGuardado(at)}${yo ? ` por <strong>${esc(yo)}</strong>` : ""}</span>`;
+}
 function filaMarcador(p) {
   const aplica = p.aplica_quiniela !== false;
   const cerrado = partidoBloqueado(p);   // el cierre por tiempo aplica también al admin
@@ -433,12 +460,16 @@ function filaMarcador(p) {
     </div>`;
   };
   const pronsHtml = slotInputs(1) + slotInputs(2);
+  // Confirmación PERSISTENTE: como el partido sigue abierto tras guardar, dejamos
+  // un texto fijo "Guardado el … por …" para que el usuario compruebe que quedó.
+  const guardadoTxt = guardadoLine(p);
   // Pie: botón de guardar (mientras sea editable); si cerró, solo la fecha.
   const acciones = editable
     ? `<button class="btn small primary pron-save">💾 Guardar partido</button>
        <span class="msg pron-msg"></span>
+       ${guardadoTxt}
        <span class="fch">${ctx}</span>`
-    : `<span class="fch">${ctx}</span>`;
+    : `${guardadoTxt}<span class="fch">${ctx}</span>`;
   row.innerHTML = `
     <div class="partido2-head">
       <span class="eq">${teamRow(p.equipo_local)}</span>
@@ -485,6 +516,24 @@ async function guardarPartido(p, btn, msgEl) {
       ({ user_id: S.user.id, partido_id: p.id, slot: +slot, gol_local: s.gl, gol_visitante: s.gv }));
     if (rows.length) { const { error } = await sb.from("pred_partidos").insert(rows); if (error) throw error; }
     msg(msgEl, rows.length ? "✅ Guardado." : "Pronóstico borrado.", true);
+    // Actualiza la confirmación PERSISTENTE en el sitio (sin recargar la fila),
+    // así el toast breve queda y además permanece el "Guardado el … por …".
+    S.savedAt = S.savedAt || {};
+    if (rows.length) S.savedAt[p.numero] = new Date(nowMs()).toISOString();
+    else delete S.savedAt[p.numero];
+    const fila = btn.closest(".partido2");
+    if (fila) {
+      const span = fila.querySelector(".pron-guardado");
+      if (rows.length) {
+        if (span) span.outerHTML = guardadoLine(p);
+        else {
+          const fch = fila.querySelector(".pron-actions .fch");
+          if (fch) fch.insertAdjacentHTML("beforebegin", guardadoLine(p));
+        }
+      } else if (span) {
+        span.remove();
+      }
+    }
   } catch (e) {
     // El backend (RLS con partido_locked) rechaza guardar después del cierre.
     if (esErrorDeCierre(e) || partidoBloqueado(p)) {
