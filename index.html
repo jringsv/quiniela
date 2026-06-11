@@ -12,6 +12,7 @@
     <div class="brand">⚽ Quiniela Mundial 2026</div>
     <nav id="nav" class="nav hidden">
       <button data-view="quiniela" class="tab active">Mi quiniela</button>
+      <button data-view="calendario" class="tab">Partidos por día 📅</button>
       <button data-view="mundial" class="tab">Mundial (real)</button>
       <button data-view="dashboard" class="tab">Posiciones</button>
       <button data-view="premios" class="tab">Premios 💰</button>
@@ -74,6 +75,21 @@
           de que empiece; después se cierra. El administrador define en cuáles participas y con cuántos
           pronósticos; los demás aparecen <strong>bloqueados 🔒</strong>. 👇</p>
         <div id="partidosList" class="partidos"></div>
+      </div>
+    </section>
+
+    <!-- ===================== PARTIDOS POR DÍA ===================== -->
+    <section id="view-calendario" class="view hidden">
+      <div class="card">
+        <h2>📅 Partidos por día</h2>
+        <p class="muted">Consulta el calendario para estar pendiente de los partidos. Por defecto
+          se muestran <strong>todos los días</strong>; usa el filtro para ver solo un día.</p>
+        <div class="cal-toolbar">
+          <label class="cal-filtro">Filtrar por día:
+            <select id="calFiltroDia"></select>
+          </label>
+        </div>
+        <div id="calendarioList" class="calendario"></div>
       </div>
     </section>
 

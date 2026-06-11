@@ -226,6 +226,30 @@
 .pron-cerrados-mini li.ok .pcm-mar{color:var(--green)}
 
 /* ============================================================
+   PARTIDOS POR DÍA (calendario)
+   ============================================================ */
+.cal-toolbar{display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin:.2rem 0 .8rem}
+.cal-filtro{display:flex; align-items:center; gap:.5rem; font-weight:600; color:var(--blue); font-size:.9rem}
+.cal-filtro select{padding:.45rem .7rem; border:1px solid var(--line); border-radius:9px;
+  font:inherit; background:#fff; color:var(--ink); cursor:pointer; text-transform:capitalize}
+.cal-dia{margin-bottom:1.1rem}
+.cal-dia-h{display:flex; align-items:baseline; gap:.5rem; text-transform:capitalize}
+.cal-cnt{font-weight:600; font-size:.74rem; color:var(--muted); text-transform:none}
+.cal-row{display:flex; align-items:center; gap:.55rem; padding:.5rem .3rem; border-bottom:1px solid var(--line2)}
+.cal-row .eq{flex:1 1 0; min-width:0; font-weight:700; text-align:right}
+.cal-row .eq .team{justify-content:flex-end}
+.cal-row .eq.v{text-align:left}
+.cal-row .eq.v .team{justify-content:flex-start}
+.cal-sec{flex:0 0 auto; min-width:88px; font-size:.66rem; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:.02em}
+.cal-hora{flex:0 0 auto; font-size:.82rem; font-weight:800; color:var(--blue); white-space:nowrap}
+.cal-score{flex:0 0 auto; font-size:.98rem; font-weight:900; color:var(--green); white-space:nowrap}
+.cal-row.jugado{background:rgba(0,104,71,.05)}
+@media(max-width:560px){
+  .cal-sec{order:-1; flex-basis:100%; min-width:0; text-align:center}
+}
+
+/* ============================================================
    NOMBRES DE JUGADOR SIEMPRE EN MAYÚSCULAS (solo visual)
    ============================================================ */
 .leaderboard td:nth-child(2),   /* columna "Jugador" de la tabla de posiciones */

@@ -226,6 +226,7 @@ function showView(name) {
   // Recarga la activación y los pronósticos cada vez (evita ver datos en caché
   // si el admin cambió el cupo después de iniciar sesión).
   if (name === "quiniela") cargarMiQuiniela().then(renderQuiniela);
+  if (name === "calendario") renderCalendario();
   if (name === "mundial") renderMundialReal();
   if (name === "dashboard") cargarLeaderboard();
   if (name === "premios") cargarPremios();
@@ -654,6 +655,74 @@ async function renderMundialReal() {
 }
 
 // ============================================================
+//  VISTA: PARTIDOS POR DÍA (calendario)
+// ============================================================
+let _calDia = "all";   // día seleccionado en el filtro ("all" = todos)
+// Clave ordenable del día (YYYY-MM-DD) en hora de El Salvador, para agrupar.
+function diaKey(iso) {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/El_Salvador", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(iso));   // en-CA => "2026-06-11"
+}
+// Etiqueta legible del día: "miércoles, 11 de junio".
+function diaLabel(key) {
+  if (!key) return "";
+  return new Date(key + "T12:00:00").toLocaleDateString("es-SV", {
+    weekday: "long", day: "2-digit", month: "long",
+  });
+}
+// Una fila compacta de solo lectura para el calendario.
+function filaCalendario(p) {
+  const jugado = p.gol_local != null && p.gol_visitante != null;
+  const hora = new Date(p.fecha).toLocaleTimeString("es-SV", {
+    hour: "2-digit", minute: "2-digit", timeZone: "America/El_Salvador",
+  });
+  const centro = jugado
+    ? `<span class="cal-score">${p.gol_local} - ${p.gol_visitante}</span>`
+    : `<span class="cal-hora">🕒 ${hora}</span>`;
+  return `<div class="cal-row${jugado ? " jugado" : ""}">
+      <span class="cal-sec">${esc(seccionDe(p))}</span>
+      <span class="eq">${teamRow(p.equipo_local)}</span>
+      ${centro}
+      <span class="eq v">${teamRow(p.equipo_visitante)}</span>
+    </div>`;
+}
+function renderCalendario() {
+  const cont = $("#calendarioList"); if (!cont) return;
+  const sel = $("#calFiltroDia");
+  // Todos los partidos con fecha, ordenados cronológicamente (y por número).
+  const ms = S.partidos.filter((p) => p.fecha).slice()
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || (a.numero || 0) - (b.numero || 0));
+  if (!ms.length) {
+    if (sel) sel.innerHTML = '<option value="all">Todos los días</option>';
+    cont.innerHTML = '<p class="muted">Aún no hay partidos con fecha.</p>';
+    return;
+  }
+  // Días distintos (ya en orden, porque ms viene ordenado por fecha).
+  const dias = [];
+  const vistos = new Set();
+  ms.forEach((p) => { const k = diaKey(p.fecha); if (k && !vistos.has(k)) { vistos.add(k); dias.push(k); } });
+  // Pobla el filtro conservando la selección si sigue siendo válida.
+  if (sel) {
+    if (_calDia !== "all" && !dias.includes(_calDia)) _calDia = "all";
+    sel.innerHTML = `<option value="all">Todos los días (${dias.length})</option>` +
+      dias.map((k) => `<option value="${k}">${diaLabel(k)}</option>`).join("");
+    sel.value = _calDia;
+  }
+  const diasMostrar = _calDia === "all" ? dias : [_calDia];
+  cont.innerHTML = diasMostrar.map((k) => {
+    const delDia = ms.filter((p) => diaKey(p.fecha) === k);
+    return `<div class="cal-dia">
+        <div class="grupo-h cal-dia-h">📅 ${diaLabel(k)} <span class="cal-cnt">${delDia.length} partido(s)</span></div>
+        ${delDia.map(filaCalendario).join("")}
+      </div>`;
+  }).join("");
+}
+// El filtro persiste tras los re-render porque solo cambiamos su innerHTML.
+{ const s = $("#calFiltroDia"); if (s) s.onchange = () => { _calDia = s.value; renderCalendario(); }; }
+
+// ============================================================
 //  VISTA: DASHBOARD
 // ============================================================
 async function cargarLeaderboard() {
@@ -728,6 +797,7 @@ function iniciarRealtime() {
   if (S._channel) return;
   const refrescar = () => {
     cargarPartidos().then(() => {
+      if (!$("#view-calendario").classList.contains("hidden")) renderCalendario();
       if (!$("#view-dashboard").classList.contains("hidden")) cargarLeaderboard();
       if (!$("#view-mundial").classList.contains("hidden")) renderMundialReal();
       if (!$("#view-premios").classList.contains("hidden")) cargarPremios();
