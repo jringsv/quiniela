@@ -336,10 +336,13 @@ async function cargarPronosticosCerrados() {
   }
   renderMarcadores();   // re-pinta con los pronósticos debajo de cada partido
 }
-// Bloque compacto (letra pequeña) con los pronósticos de todos para UN partido
-// ya cerrado. Vacío si el partido no ha cerrado o nadie pronosticó.
+// Bloque compacto (letra pequeña) con los pronósticos de todos para UN partido.
+// Para todos: solo si el partido ya cerró. Para el ADMIN: siempre que haya
+// pronósticos, aunque el partido siga abierto (el backend ya se los entrega).
 function bloquePronosticosCerrados(p) {
-  if (!partidoBloqueado(p)) return "";
+  const esAdmin = !!S.profile?.is_admin;
+  const cerrado = partidoBloqueado(p);
+  if (!cerrado && !esAdmin) return "";
   const preds = S.pronCerrados.get(p.id) || [];
   if (!preds.length) return "";
   const yo = (S.profile?.nombre || "").trim();
@@ -350,8 +353,10 @@ function bloquePronosticosCerrados(p) {
         <span class="pcm-mar">${r.pred_local}-${r.pred_visitante}${r.acerto ? " ✅" : ""}</span>
       </li>`;
   }).join("");
-  return `<div class="pron-cerrados-mini">
-      <div class="pcm-title">🔒 Pronósticos de todos</div>
+  // Si aún no cierra y solo lo ve el admin, lo indicamos para evitar confusiones.
+  const title = cerrado ? "🔒 Pronósticos de todos" : "👁️ Pronósticos de todos (vista admin · aún abierto)";
+  return `<div class="pron-cerrados-mini${cerrado ? "" : " admin-peek"}">
+      <div class="pcm-title">${title}</div>
       <ul>${lis}</ul>
     </div>`;
 }

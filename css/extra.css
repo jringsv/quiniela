@@ -213,6 +213,10 @@
    cerrado, en letra pequeña.
    ============================================================ */
 .pron-cerrados-mini{margin-top:.5rem; padding-top:.45rem; border-top:1px dashed var(--line2)}
+/* Vista solo-admin (partido aún abierto): se distingue con un borde azul. */
+.pron-cerrados-mini.admin-peek{border-top:1px dashed var(--blue); background:rgba(10,49,97,.04);
+  border-radius:8px; padding:.45rem .5rem .2rem}
+.pron-cerrados-mini.admin-peek .pcm-title{color:var(--blue)}
 .pcm-title{font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
   color:var(--muted); margin-bottom:.3rem}
 .pron-cerrados-mini ul{list-style:none; margin:0; padding:0;
