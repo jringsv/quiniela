@@ -657,7 +657,7 @@ async function renderMundialReal() {
 // ============================================================
 //  VISTA: PARTIDOS POR DÍA (calendario)
 // ============================================================
-let _calDia = "all";   // día seleccionado en el filtro ("all" = todos)
+let _calDia = "all";   // día seleccionado en el filtro ("all" = hoy en adelante)
 // Clave ordenable del día (YYYY-MM-DD) en hora de El Salvador, para agrupar.
 function diaKey(iso) {
   if (!iso) return "";
@@ -695,7 +695,7 @@ function renderCalendario() {
   const ms = S.partidos.filter((p) => p.fecha).slice()
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || (a.numero || 0) - (b.numero || 0));
   if (!ms.length) {
-    if (sel) sel.innerHTML = '<option value="all">Todos los días</option>';
+    if (sel) sel.innerHTML = '<option value="all">Hoy en adelante</option>';
     cont.innerHTML = '<p class="muted">Aún no hay partidos con fecha.</p>';
     return;
   }
@@ -703,14 +703,21 @@ function renderCalendario() {
   const dias = [];
   const vistos = new Set();
   ms.forEach((p) => { const k = diaKey(p.fecha); if (k && !vistos.has(k)) { vistos.add(k); dias.push(k); } });
+  // Hoy según el reloj del servidor (mismo huso que el resto de la app).
+  const hoyKey = diaKey(new Date(nowMs()).toISOString());
+  const futuros = dias.filter((k) => k >= hoyKey);   // hoy en adelante (las claves YYYY-MM-DD ordenan como texto)
   // Pobla el filtro conservando la selección si sigue siendo válida.
   if (sel) {
     if (_calDia !== "all" && !dias.includes(_calDia)) _calDia = "all";
-    sel.innerHTML = `<option value="all">Todos los días (${dias.length})</option>` +
-      dias.map((k) => `<option value="${k}">${diaLabel(k)}</option>`).join("");
+    sel.innerHTML = `<option value="all">Hoy en adelante (${futuros.length})</option>` +
+      dias.map((k) => `<option value="${k}">${diaLabel(k)}${k < hoyKey ? " ·  ✓" : ""}</option>`).join("");
     sel.value = _calDia;
   }
-  const diasMostrar = _calDia === "all" ? dias : [_calDia];
+  const diasMostrar = _calDia === "all" ? futuros : [_calDia];
+  if (!diasMostrar.length) {
+    cont.innerHTML = '<p class="muted">No quedan partidos próximos. Usa el filtro para revisar días anteriores.</p>';
+    return;
+  }
   cont.innerHTML = diasMostrar.map((k) => {
     const delDia = ms.filter((p) => diaKey(p.fecha) === k);
     return `<div class="cal-dia">
