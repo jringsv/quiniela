@@ -169,6 +169,49 @@
           <em>Mundial</em>.</p>
         <div id="adminPartidos" class="partidos admin"></div>
       </div>
+
+      <!-- ===== SOLO SUPERADMIN: registrar pronóstico pos-partido ===== -->
+      <div class="card superadmin-only hidden">
+        <h2>🛡️ Registrar pronóstico pos-partido (superadmin)</h2>
+        <p class="muted small">Excepción para corregir el pronóstico de un usuario en un partido
+          <strong>ya cerrado o terminado</strong>. Cada cambio queda guardado en el historial con
+          tu nombre, el valor anterior y el motivo. <strong>El motivo debe tener al menos 30
+          caracteres.</strong></p>
+        <div class="super-form">
+          <label class="field">Usuario
+            <select id="superUser"></select>
+          </label>
+          <label class="field">Partido
+            <select id="superPartido"></select>
+          </label>
+          <div class="super-marcador">
+            <label class="field">Pronóstico
+              <select id="superSlot">
+                <option value="1">Pronóstico 1</option>
+                <option value="2">Pronóstico 2</option>
+              </select>
+            </label>
+            <label class="field">Goles local
+              <input type="number" id="superGL" min="0" max="99" placeholder="0">
+            </label>
+            <span class="super-vs">-</span>
+            <label class="field">Goles visitante
+              <input type="number" id="superGV" min="0" max="99" placeholder="0">
+            </label>
+          </div>
+          <label class="field">Motivo (mín. 30 caracteres)
+            <textarea id="superMotivo" rows="3"
+              placeholder="Explica por qué se registra este pronóstico fuera de tiempo…"></textarea>
+            <span id="superMotivoCount" class="small muted">0 / 30</span>
+          </label>
+          <button id="superGuardarBtn" class="btn primary" disabled>Registrar pronóstico</button>
+          <span id="superMsg" class="msg"></span>
+        </div>
+        <details class="super-log">
+          <summary>🕒 Historial de cambios pos-partido</summary>
+          <div id="superHistorial"><p class="muted small">Cargando…</p></div>
+        </details>
+      </div>
     </section>
   </main>
 

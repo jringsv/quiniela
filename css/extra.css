@@ -279,3 +279,22 @@
 .pcm-nom{                        /* pronósticos de todos (debajo de cada partido) */
   text-transform:uppercase;
 }
+
+/* ============================================================
+   PANEL SUPERADMIN — registrar pronóstico pos-partido
+   ============================================================ */
+.super-form{display:flex; flex-direction:column; gap:.7rem; max-width:520px}
+.super-form .field{display:flex; flex-direction:column; gap:.3rem; font-weight:600; color:var(--blue); font-size:.9rem}
+.super-form select,
+.super-form input[type="number"],
+.super-form textarea{padding:.5rem .7rem; border:1px solid var(--line); border-radius:9px;
+  font:inherit; background:#fff; color:var(--ink)}
+.super-form textarea{resize:vertical; min-height:3.2rem}
+.super-marcador{display:flex; align-items:flex-end; gap:.6rem; flex-wrap:wrap}
+.super-marcador .field{flex:1 1 90px; min-width:90px}
+.super-vs{font-weight:900; color:var(--muted); padding-bottom:.6rem}
+#superMotivoCount.ok{color:var(--green); font-weight:700}
+.super-log{margin-top:1rem}
+.super-log summary{cursor:pointer; font-weight:700; color:var(--blue)}
+.super-log-row{padding:.5rem .2rem; border-bottom:1px solid var(--line2); font-size:.86rem}
+.super-log-row .small{margin-top:.15rem}

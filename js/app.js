@@ -154,6 +154,9 @@ async function onLogin() {
     $("#logoutBtn").classList.remove("hidden");
     $("#nav").classList.remove("hidden");
     $$(".admin-only").forEach((e) => e.classList.toggle("hidden", !prof?.is_admin));
+    // El superadmin (por correo) ve además la opción de registrar pronósticos
+    // pos-partido. Es una excepción manual y auditada, separada del rol admin.
+    $$(".superadmin-only").forEach((e) => e.classList.toggle("hidden", !esSuperadmin()));
 
     // Si el admin reseteó su contraseña, obligamos a cambiarla antes de entrar.
     // El modal, al terminar con éxito, llama a continuarApp().
@@ -893,6 +896,7 @@ async function renderAdmin() {
   await renderAdminUsuarios();
   await cargarAdminActivacion();
   renderAdminPartidos();
+  renderSuperPanel();   // solo hace algo si el usuario es el superadmin
   const { data: rb } = await sb.from("res_bracket").select("*");
   S.realWinners = {}; (rb || []).forEach((r) => (S.realWinners[r.match_no] = r.ganador));
 }
@@ -1224,6 +1228,89 @@ $("#importBtn").onclick = async () => {
   $("#importBox").value = ""; await cargarPartidos(); await propagarLlaves(); renderAdminPartidos();
   alert(`✅ ${payload.length} partidos importados.`);
 };
+
+// ============================================================
+//  SUPERADMIN: registrar pronóstico pos-partido (excepción auditada)
+// ============================================================
+// Solo este correo ve y usa la opción. El backend lo vuelve a validar
+// (función is_superadmin): el correo aquí solo controla la UI.
+const SUPERADMIN_EMAIL = "jrobertoma@gmail.com";
+const esSuperadmin = () => (S.user?.email || "").trim().toLowerCase() === SUPERADMIN_EMAIL;
+
+// Llena los selectores (usuarios + partidos) y el historial. Se apoya en
+// S.adminUsers (cargado por cargarAdminActivacion) y S.partidos.
+function renderSuperPanel() {
+  if (!esSuperadmin()) return;
+  const selU = $("#superUser"), selP = $("#superPartido");
+  if (!selU || !selP) return;
+  const users = (S.adminUsers || []).slice()
+    .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || "", "es"));
+  selU.innerHTML = users.map((u) =>
+    `<option value="${u.id}">${esc(u.nombre || u.email || "—")}${u.email ? " · " + esc(u.email) : ""}</option>`).join("");
+  const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
+  selP.innerHTML = ms.map((p) =>
+    `<option value="${p.id}">#${p.numero ?? "?"} · ${esc(p.equipo_local)} vs ${esc(p.equipo_visitante)}${p.fecha ? " · " + fmtFecha(p.fecha) : ""}</option>`).join("");
+  cargarHistorialOverrides();
+}
+
+// Registra/corrige el pronóstico vía RPC SECURITY DEFINER (única vía que
+// puede escribir el pronóstico de otro usuario saltándose el cierre).
+async function guardarPronosticoPospartido() {
+  if (!esSuperadmin()) return;
+  const m = $("#superMsg");
+  const uid = $("#superUser").value, pid = +$("#superPartido").value, slot = +$("#superSlot").value;
+  const gl = $("#superGL").value, gv = $("#superGV").value;
+  const motivo = ($("#superMotivo").value || "").trim();
+  if (!uid || !pid) { msg(m, "Elige usuario y partido.", false); return; }
+  if (gl === "" || gv === "") { msg(m, "Escribe el marcador (local y visitante).", false); return; }
+  if (motivo.length < 30) { msg(m, "El motivo debe tener al menos 30 caracteres.", false); return; }
+  const btn = $("#superGuardarBtn"); btn.disabled = true;
+  try {
+    const { error } = await sb.rpc("admin_set_pronostico_pospartido", {
+      p_user: uid, p_partido: pid, p_slot: slot,
+      p_gol_local: Math.max(0, Math.min(99, +gl)),
+      p_gol_visitante: Math.max(0, Math.min(99, +gv)),
+      p_motivo: motivo,
+    });
+    if (error) throw error;
+    msg(m, "✅ Pronóstico registrado y auditado.", true);
+    $("#superGL").value = ""; $("#superGV").value = ""; $("#superMotivo").value = "";
+    actualizarContadorMotivo();
+    cargarHistorialOverrides();
+  } catch (e) {
+    msg(m, "Error: " + (e.message || e), false);
+  } finally {
+    actualizarContadorMotivo();   // re-evalúa si el botón debe seguir habilitado
+  }
+}
+
+// Trae el historial legible (últimos cambios) y lo pinta en el panel.
+async function cargarHistorialOverrides() {
+  const cont = $("#superHistorial"); if (!cont) return;
+  const { data, error } = await sb.rpc("admin_list_overrides");
+  if (error) { cont.innerHTML = `<p class="muted small">No se pudo cargar el historial: ${esc(error.message)}</p>`; return; }
+  if (!data?.length) { cont.innerHTML = '<p class="muted small">Aún no hay cambios registrados.</p>'; return; }
+  cont.innerHTML = data.map((r) => `
+    <div class="super-log-row">
+      <div><strong>${esc(r.usuario)}</strong> · #${r.partido_no} ${esc(r.partido)} · P${r.slot}</div>
+      <div>${esc(r.anterior)} → <strong>${esc(r.marcador)}</strong> · por ${esc(r.superadmin)} · ${fmtFecha(r.created_at)}</div>
+      <div class="muted small">📝 ${esc(r.motivo)}</div>
+    </div>`).join("");
+}
+
+// Contador de caracteres del motivo + habilita/inhabilita el botón (≥30).
+function actualizarContadorMotivo() {
+  const mot = $("#superMotivo"), cnt = $("#superMotivoCount"), btn = $("#superGuardarBtn");
+  const len = (mot?.value || "").trim().length;
+  if (cnt) { cnt.textContent = `${len} / 30`; cnt.className = "small " + (len >= 30 ? "ok" : "muted"); }
+  if (btn) btn.disabled = len < 30;
+}
+{
+  const mot = $("#superMotivo"), btn = $("#superGuardarBtn");
+  if (mot) mot.oninput = actualizarContadorMotivo;
+  if (btn) btn.onclick = guardarPronosticoPospartido;
+  actualizarContadorMotivo();
+}
 
 // ============================================================
 //  ARRANQUE
