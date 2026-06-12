@@ -63,6 +63,7 @@ Solo el admin queda exceptuado y puede cargar resultados.
    9. [`supabase/migracion_dos_pred_y_activacion.sql`](supabase/migracion_dos_pred_y_activacion.sql) — doble marcador + activación por partido.
    10. [`supabase/migracion_npred_por_activacion.sql`](supabase/migracion_npred_por_activacion.sql) — activar con 1 ó 2 pronósticos por usuario/partido.
    11. [`supabase/migracion_reset_password.sql`](supabase/migracion_reset_password.sql) — el admin resetea contraseñas y obliga al cambio al ingresar.
+   12. [`supabase/migracion_control_pagos.sql`](supabase/migracion_control_pagos.sql) — control de pagos por usuario (pronósticos enviados vs. dinero pagado).
 
    > Nota: si en algún momento corriste `migracion_pred_inmutable.sql` (descartada), ejecuta
    > [`supabase/migracion_pred_editable.sql`](supabase/migracion_pred_editable.sql) para volver a
@@ -203,3 +204,18 @@ admin** promueva a otros (un usuario normal no puede auto-promoverse).
 `pred_partidos` tiene una columna `slot` (1 o 2): cada usuario puede guardar hasta dos
 marcadores **distintos** por partido. El puntaje (`get_leaderboard`) suma **ambas** filas,
 por lo que los dos pronósticos acumulan.
+
+## 💵 Control de pagos
+La pestaña **Control de Pagos** la **ven todos** los usuarios autorizados (solo lectura);
+**solo el admin** puede registrar/editar pagos. Por cada usuario muestra:
+**pronósticos enviados**, **dinero pagado** y **disponible**. Un pronóstico se considera
+**enviado** (y cuesta **$1**) cuando **su partido ya cerró** (15 min antes del juego, igual
+que el bloqueo) **y** el usuario había registrado un marcador (cada `slot` digitado = $1),
+estando activado como participante. El **disponible** = `dinero pagado − pronósticos enviados`;
+si el usuario puso más pronósticos de los que pagó, queda **negativo en rojo**.
+
+El admin registra abonos (positivos, o negativos para corregir) que se guardan en la tabla
+`pagos` (con RLS solo-admin: nadie más puede escribirla). El resumen lo calcula
+`get_control_pagos()` (security definer; responde a cualquier usuario autorizado, pero la
+escritura sigue bloqueada al admin). Lo ejecuta
+[`supabase/migracion_control_pagos.sql`](supabase/migracion_control_pagos.sql).

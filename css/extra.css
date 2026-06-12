@@ -298,3 +298,23 @@
 .super-log summary{cursor:pointer; font-weight:700; color:var(--blue)}
 .super-log-row{padding:.5rem .2rem; border-bottom:1px solid var(--line2); font-size:.86rem}
 .super-log-row .small{margin-top:.15rem}
+
+/* ===================== CONTROL DE PAGOS (admin) ===================== */
+.pagos-resumen{display:flex; flex-wrap:wrap; gap:.6rem; margin:.4rem 0 1rem}
+.pagos-resumen .big.neg{color:#c0392b}
+.pagos-tabla{width:100%; border-collapse:collapse; font-size:.9rem}
+.pagos-tabla th,.pagos-tabla td{padding:.5rem .45rem; border-bottom:1px solid var(--line2); text-align:center}
+.pagos-tabla th{color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em}
+.pagos-tabla td.p-nombre{text-align:left; font-weight:700}
+.pagos-tabla td.p-num{font-variant-numeric:tabular-nums; white-space:nowrap}
+.pagos-tabla td.p-num.neg{color:#c0392b; font-weight:800}
+.pagos-tabla td.p-num.pos{color:var(--green); font-weight:700}
+.pagos-tabla tr:hover{background:var(--panel2)}
+.pagos-tabla tr.me{background:rgba(10,49,97,.07)}
+.pagos-tabla .p-pago{display:flex; gap:.35rem; align-items:center; justify-content:flex-end; flex-wrap:wrap}
+.pagos-tabla .pago-monto{width:5.5rem; padding:.35rem .5rem; border:1px solid var(--line);
+  border-radius:8px; font:inherit; text-align:right}
+@media (max-width:560px){
+  .pagos-tabla th:nth-child(3),.pagos-tabla td:nth-child(3){display:none} /* oculta "A pagar" en móvil */
+  .pagos-tabla .p-pago{justify-content:flex-start}
+}

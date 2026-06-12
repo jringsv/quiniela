@@ -16,6 +16,7 @@
       <button data-view="mundial" class="tab">Mundial (real)</button>
       <button data-view="dashboard" class="tab">Posiciones</button>
       <button data-view="premios" class="tab">Premios 💰</button>
+      <button data-view="pagos" class="tab">Control de Pagos 💵</button>
       <button data-view="admin" class="tab admin-only hidden">Admin</button>
     </nav>
     <div class="user-box">
@@ -132,6 +133,20 @@
           exacto</strong>. Si nadie acierta, no hay ganador en ese partido.</p>
         <div id="premiosResumen" class="premios-resumen"></div>
         <div id="premiosList" class="premios"></div>
+      </div>
+    </section>
+
+    <!-- ===================== CONTROL DE PAGOS ===================== -->
+    <section id="view-pagos" class="view hidden">
+      <div class="card">
+        <h2>💵 Control de pagos</h2>
+        <p class="muted small">Por cada <strong>pronóstico enviado</strong> el usuario debe $1.
+          Un pronóstico cuenta como enviado cuando <strong>su partido ya cerró</strong> (15 min antes
+          del juego) y el usuario había <strong>registrado un marcador</strong>. Registra cuánto ha
+          <strong>pagado</strong> cada quien; el <strong>disponible</strong> es lo pagado menos lo
+          enviado: si puso más pronósticos de los que pagó, queda <strong>negativo (en rojo)</strong>.</p>
+        <div id="adminPagosResumen" class="pagos-resumen"></div>
+        <div id="adminPagos" class="pagos-admin"></div>
       </div>
     </section>
 

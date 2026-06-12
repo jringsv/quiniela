@@ -241,6 +241,7 @@ function showView(name) {
   if (name === "mundial") renderMundialReal();
   if (name === "dashboard") cargarLeaderboard();
   if (name === "premios") cargarPremios();
+  if (name === "pagos") renderControlPagos();
   if (name === "admin") renderAdmin();
 }
 
@@ -1036,6 +1037,99 @@ async function borrarUsuario(id, nombre, nPred) {
   const { error } = await sb.rpc("admin_delete_user", { uid: id });
   if (error) { alert("Error al borrar: " + error.message); return; }
   await renderAdminUsuarios();
+}
+
+// ---------- Admin: control de pagos ----------
+// Muestra, por usuario: pronósticos ENVIADOS (partido cerrado + marcador puesto,
+// $1 c/u), DINERO PAGADO (registrado por el admin) y DISPONIBLE (pagado − enviados).
+// El disponible negativo (debe más de lo que pagó) se pinta en rojo.
+async function renderControlPagos() {
+  const cont = $("#adminPagos"), res = $("#adminPagosResumen");
+  if (!cont) return;
+  const { data, error } = await sb.rpc("get_control_pagos");
+  if (error) { if (res) res.innerHTML = ""; cont.innerHTML = `<p class="muted">Error: ${esc(error.message)}</p>`; return; }
+  if (!data?.length) { if (res) res.innerHTML = ""; cont.innerHTML = '<p class="muted">Aún no hay usuarios autorizados.</p>'; return; }
+
+  const totEnviados = data.reduce((a, r) => a + Number(r.pronosticos_enviados), 0);
+  const totPagado   = data.reduce((a, r) => a + Number(r.dinero_pagado), 0);
+  const totDisp     = totPagado - totEnviados;
+  if (res) res.innerHTML = `
+    <div class="premio-stat"><span class="big">${totEnviados}</span><span class="lbl">pronósticos enviados ($${totEnviados})</span></div>
+    <div class="premio-stat"><span class="big">${money(totPagado)}</span><span class="lbl">pagado en total</span></div>
+    <div class="premio-stat"><span class="big ${totDisp < 0 ? "neg" : ""}">${money(totDisp)}</span><span class="lbl">disponible global</span></div>`;
+
+  // Solo el admin puede registrar/editar pagos; los demás usuarios solo ven.
+  const esAdmin = !!S.profile?.is_admin;
+  cont.innerHTML = `
+    <table class="pagos-tabla">
+      <thead>
+        <tr><th>Jugador</th><th>Enviados</th><th>A pagar</th><th>Pagado</th><th>Disponible</th>${esAdmin ? "<th>Registrar pago</th>" : ""}</tr>
+      </thead>
+      <tbody>
+        ${data.map((r) => {
+          const env = Number(r.pronosticos_enviados);
+          const disp = Number(r.disponible);
+          const yo = r.user_id === S.user.id;
+          const accion = esAdmin
+            ? `<td class="p-pago">
+                <input type="number" step="0.01" class="pago-monto" data-uid="${r.user_id}"
+                       placeholder="0.00" aria-label="Monto a registrar para ${esc(r.nombre)}" />
+                <button class="btn small" data-pago="${r.user_id}" data-nombre="${esc(r.nombre)}">Abonar</button>
+                <button class="btn small ghost" data-histpago="${r.user_id}" data-nombre="${esc(r.nombre)}">Historial</button>
+              </td>`
+            : "";
+          return `<tr class="${yo ? "me" : ""}">
+            <td class="p-nombre">${esc(r.nombre || "(sin nombre)")}${yo ? " (tú)" : ""}</td>
+            <td class="p-num">${env}</td>
+            <td class="p-num">${money(env)}</td>
+            <td class="p-num">${money(r.dinero_pagado)}</td>
+            <td class="p-num ${disp < 0 ? "neg" : "pos"}">${money(disp)}</td>
+            ${accion}
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>`;
+
+  if (esAdmin) {
+    cont.querySelectorAll("[data-pago]").forEach((b) =>
+      (b.onclick = () => registrarPago(b.dataset.pago, b.dataset.nombre)));
+    cont.querySelectorAll("[data-histpago]").forEach((b) =>
+      (b.onclick = () => verHistorialPagos(b.dataset.histpago, b.dataset.nombre)));
+  }
+}
+// Registra un abono (positivo) o ajuste (negativo) para un usuario.
+async function registrarPago(uid, nombre) {
+  const inp = document.querySelector(`.pago-monto[data-uid="${uid}"]`);
+  const monto = Number(inp?.value);
+  if (!monto) { alert("Escribe un monto distinto de 0 (usa negativo para corregir)."); return; }
+  const nota = prompt(`Nota para el abono de ${money(monto)} a "${nombre || "este usuario"}" (opcional):`, "");
+  if (nota === null) return;                       // canceló
+  const { error } = await sb.from("pagos").insert({
+    user_id: uid, monto, nota: nota.trim() || null, created_by: S.user.id,
+  });
+  if (error) { alert("Error al registrar el pago: " + error.message); return; }
+  await renderControlPagos();
+}
+// Muestra el historial de abonos de un usuario y permite borrar uno.
+async function verHistorialPagos(uid, nombre) {
+  const { data, error } = await sb.from("pagos")
+    .select("*").eq("user_id", uid).order("created_at", { ascending: false });
+  if (error) { alert("Error: " + error.message); return; }
+  if (!data?.length) { alert(`"${nombre || "este usuario"}" no tiene pagos registrados.`); return; }
+  const total = data.reduce((a, p) => a + Number(p.monto), 0);
+  const lineas = data.map((p) =>
+    `• ${money(p.monto)}  —  ${fmtFecha(p.created_at)}${p.nota ? "  (" + p.nota + ")" : ""}`).join("\n");
+  const cual = prompt(
+    `Pagos de "${nombre || "este usuario"}" (total ${money(total)}):\n\n${lineas}\n\n` +
+    `Para BORRAR un pago, escribe su monto exacto (ej. ${data[0].monto}). Deja vacío para cerrar:`, "");
+  if (!cual) return;
+  const objetivo = Number(cual);
+  const pago = data.find((p) => Number(p.monto) === objetivo);
+  if (!pago) { alert("No se encontró un pago con ese monto."); return; }
+  if (!confirm(`¿Borrar el pago de ${money(pago.monto)}?`)) return;
+  const { error: delErr } = await sb.from("pagos").delete().eq("id", pago.id);
+  if (delErr) { alert("Error al borrar: " + delErr.message); return; }
+  await renderControlPagos();
 }
 // Genera una contraseña temporal legible (sin caracteres ambiguos como O/0, l/1).
 function genPasswordTemporal() {
