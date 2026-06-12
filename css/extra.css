@@ -207,10 +207,26 @@
   background:rgba(0,104,71,.08); border:1px solid rgba(0,104,71,.2); border-radius:9px;
   padding:.35rem .55rem; font-size:.86rem}
 .premio-ganadores li.me{background:rgba(213,43,30,.1); border-color:rgba(213,43,30,.3)}
-.premio-ganadores .g-nombre{font-weight:700}
+.premio-ganadores li.pagado{background:rgba(0,104,71,.16); border-color:rgba(0,104,71,.45)}
+.premio-ganadores .g-nombre{font-weight:700; flex:1; min-width:0}
 .premio-ganadores .g-monto{font-weight:800; color:var(--green); white-space:nowrap}
 .premio-ganadores li.me .g-monto{color:var(--red)}
 .premio-sin{margin:0; font-size:.82rem; color:var(--muted); font-style:italic}
+
+/* Chequesito de "pagado" junto a cada ganador (vista Premios). */
+.g-pago{display:inline-flex; align-items:center; gap:.3rem; white-space:nowrap;
+  font-size:.74rem; font-weight:700; color:var(--muted); cursor:pointer; user-select:none}
+.g-pago .g-chk{width:1.05rem; height:1.05rem; accent-color:var(--green); cursor:pointer; margin:0}
+.g-pago.ro{cursor:default}
+.g-pago.ro.on{color:var(--green)}
+.premio-ganadores li.pagado .g-pago{color:var(--green)}
+
+/* Badge "PAGADO" en la cabecera de la tarjeta y acciones de admin. */
+.premio-head-r{display:inline-flex; align-items:center; gap:.45rem}
+.premio-pagado-badge{font-weight:800; font-size:.66rem; letter-spacing:.04em; color:#fff;
+  background:var(--green); border-radius:999px; padding:.12rem .5rem; white-space:nowrap}
+.premio-card.pagado{border-color:rgba(0,104,71,.5); box-shadow:0 0 0 1px rgba(0,104,71,.25), var(--shadow)}
+.premio-acciones{display:flex; justify-content:flex-end; border-top:1px dashed var(--line2); padding-top:.45rem}
 
 /* ============================================================
    PRONÓSTICOS DE TODOS — bloque compacto DEBAJO de cada partido

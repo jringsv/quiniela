@@ -827,21 +827,50 @@ async function cargarPremios() {
     <div class="premio-stat"><span class="big">${money(totBote)}</span><span class="lbl">recaudado en total</span></div>
     <div class="premio-stat"><span class="big">${data.length}</span><span class="lbl">partidos con resultado</span></div>`;
 
+  // Solo el admin puede marcar/desmarcar pagos; los demás usuarios solo consultan.
+  const esAdmin = !!S.profile?.is_admin;
+
   cont.innerHTML = data.map((r) => {
     const yo = (S.profile?.nombre || "").trim();
     const ganadores = r.ganadores || [];
     const hayGan = r.n_ganadores > 0;
     const seccion = r.fase === "grupos" ? "Grupo " + (r.grupo || "?") : fmtFase(r.fase);
+    // Cada ganador lleva un "chequesito" de pagado: editable para el admin,
+    // de solo lectura (✅/⬜) para el resto.
+    const chkGan = (g) => {
+      if (esAdmin) {
+        return `<label class="g-pago" title="Marcar como pagado">
+            <input type="checkbox" class="g-chk" data-partido="${r.partido_id}" data-uid="${g.user_id}"
+                   ${g.pagado ? "checked" : ""} aria-label="Pagado a ${esc(g.nombre)}" />
+            <span class="g-pago-lbl">Pagado</span>
+          </label>`;
+      }
+      return `<span class="g-pago ro ${g.pagado ? "on" : ""}"
+                title="${g.pagado ? "Pagado" : "Pendiente"}">${g.pagado ? "✅ Pagado" : "⬜ Pendiente"}</span>`;
+    };
     const ganHtml = hayGan
-      ? `<ul class="premio-ganadores">${ganadores.map((nm) =>
-          `<li class="${nm === yo ? "me" : ""}"><span class="g-nombre">🏅 ${esc(nm)}</span>
-             <span class="g-monto">${money(r.premio_por_ganador)}</span></li>`).join("")}</ul>`
+      ? `<ul class="premio-ganadores">${ganadores.map((g) =>
+          `<li class="${g.nombre === yo ? "me" : ""} ${g.pagado ? "pagado" : ""}">
+             <span class="g-nombre">🏅 ${esc(g.nombre)}</span>
+             <span class="g-monto">${money(r.premio_por_ganador)}</span>
+             ${chkGan(g)}
+           </li>`).join("")}</ul>`
       : `<p class="premio-sin">Nadie acertó el marcador exacto. El premio (${money(r.premio_total)}) no se reparte.</p>`;
+    // Badge "PAGADO" cuando todos los ganadores del partido están marcados.
+    const badge = r.todos_pagados ? `<span class="premio-pagado-badge">✅ PAGADO</span>` : "";
+    // Botón de conveniencia (solo admin) para marcar/desmarcar todo el partido.
+    const accionTodo = (esAdmin && hayGan)
+      ? `<div class="premio-acciones">
+           <button class="btn small ghost" data-pagar-todo="${r.partido_id}" data-estado="${r.todos_pagados ? "1" : "0"}">
+             ${r.todos_pagados ? "Desmarcar todo el partido" : "Marcar todo el partido como pagado"}
+           </button>
+         </div>`
+      : "";
     return `
-      <div class="premio-card ${hayGan ? "" : "sin"}">
+      <div class="premio-card ${hayGan ? "" : "sin"} ${r.todos_pagados ? "pagado" : ""}">
         <div class="premio-head">
           <span class="premio-sec">#${r.numero ?? "?"} · ${esc(seccion)}</span>
-          <span class="premio-fecha">${fmtFecha(r.fecha)}</span>
+          <span class="premio-head-r">${badge}<span class="premio-fecha">${fmtFecha(r.fecha)}</span></span>
         </div>
         <div class="premio-match">
           <span class="eq">${teamRow(r.equipo_local)}</span>
@@ -854,8 +883,37 @@ async function cargarPremios() {
           <span>🏆 Ganadores: <strong>${r.n_ganadores}</strong></span>
         </div>
         ${ganHtml}
+        ${accionTodo}
       </div>`;
   }).join("");
+
+  if (esAdmin) {
+    cont.querySelectorAll(".g-chk").forEach((c) =>
+      (c.onchange = () => togglePremioPagado(c.dataset.partido, c.dataset.uid, c.checked, c)));
+    cont.querySelectorAll("[data-pagar-todo]").forEach((b) =>
+      (b.onclick = () => togglePremioPartido(b.dataset.pagarTodo, b.dataset.estado !== "1")));
+  }
+}
+// Marca/desmarca a UN ganador como pagado (solo admin). Refresca la vista.
+async function togglePremioPagado(partidoId, uid, pagado, chk) {
+  if (chk) chk.disabled = true;
+  const { error } = await sb.rpc("set_premio_pagado", {
+    p_partido_id: Number(partidoId), p_user_id: uid, p_pagado: pagado,
+  });
+  if (error) {
+    alert("Error al marcar el pago: " + error.message);
+    if (chk) { chk.checked = !pagado; chk.disabled = false; }
+    return;
+  }
+  await cargarPremios();
+}
+// Marca/desmarca a TODOS los ganadores de un partido a la vez (solo admin).
+async function togglePremioPartido(partidoId, pagado) {
+  const { error } = await sb.rpc("set_premio_partido_pagado", {
+    p_partido_id: Number(partidoId), p_pagado: pagado,
+  });
+  if (error) { alert("Error al actualizar el partido: " + error.message); return; }
+  await cargarPremios();
 }
 
 function iniciarRealtime() {
@@ -886,6 +944,7 @@ function iniciarRealtime() {
     .on("postgres_changes", { event: "*", schema: "public", table: "resultado_avance" }, () => { if (!$("#view-dashboard").classList.contains("hidden")) cargarLeaderboard(); })
     .on("postgres_changes", { event: "*", schema: "public", table: "resultado_posicion" }, () => { if (!$("#view-dashboard").classList.contains("hidden")) cargarLeaderboard(); })
     .on("postgres_changes", { event: "*", schema: "public", table: "res_bracket" }, () => { if (!$("#view-mundial").classList.contains("hidden")) renderMundialReal(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "premio_pagado" }, () => { if (!$("#view-premios").classList.contains("hidden")) cargarPremios(); })
     .subscribe();
 }
 
