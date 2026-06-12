@@ -1048,18 +1048,26 @@ async function renderControlPagos() {
   if (!cont) return;
   const { data, error } = await sb.rpc("get_control_pagos");
   if (error) { if (res) res.innerHTML = ""; cont.innerHTML = `<p class="muted">Error: ${esc(error.message)}</p>`; return; }
-  if (!data?.length) { if (res) res.innerHTML = ""; cont.innerHTML = '<p class="muted">Aún no hay usuarios autorizados.</p>'; return; }
-
-  const totEnviados = data.reduce((a, r) => a + Number(r.pronosticos_enviados), 0);
-  const totPagado   = data.reduce((a, r) => a + Number(r.dinero_pagado), 0);
-  const totDisp     = totPagado - totEnviados;
-  if (res) res.innerHTML = `
-    <div class="premio-stat"><span class="big">${totEnviados}</span><span class="lbl">pronósticos enviados ($${totEnviados})</span></div>
-    <div class="premio-stat"><span class="big">${money(totPagado)}</span><span class="lbl">pagado en total</span></div>
-    <div class="premio-stat"><span class="big ${totDisp < 0 ? "neg" : ""}">${money(totDisp)}</span><span class="lbl">disponible global</span></div>`;
+  if (!data?.length) { if (res) res.innerHTML = ""; cont.innerHTML = '<p class="muted">Aún no hay datos de pago.</p>'; return; }
 
   // Solo el admin puede registrar/editar pagos; los demás usuarios solo ven.
   const esAdmin = !!S.profile?.is_admin;
+
+  // El resumen global (totales de todos) es solo para el admin; un usuario normal
+  // únicamente recibe SU propia fila, así que no tiene sentido un "total global".
+  if (res) {
+    if (esAdmin) {
+      const totEnviados = data.reduce((a, r) => a + Number(r.pronosticos_enviados), 0);
+      const totPagado   = data.reduce((a, r) => a + Number(r.dinero_pagado), 0);
+      const totDisp     = totPagado - totEnviados;
+      res.innerHTML = `
+        <div class="premio-stat"><span class="big">${totEnviados}</span><span class="lbl">pronósticos enviados ($${totEnviados})</span></div>
+        <div class="premio-stat"><span class="big">${money(totPagado)}</span><span class="lbl">pagado en total</span></div>
+        <div class="premio-stat"><span class="big ${totDisp < 0 ? "neg" : ""}">${money(totDisp)}</span><span class="lbl">disponible global</span></div>`;
+    } else {
+      res.innerHTML = "";
+    }
+  }
   cont.innerHTML = data.map((r) => {
     const env = Number(r.pronosticos_enviados);
     const disp = Number(r.disponible);

@@ -206,8 +206,9 @@ marcadores **distintos** por partido. El puntaje (`get_leaderboard`) suma **amba
 por lo que los dos pronósticos acumulan.
 
 ## 💵 Control de pagos
-La pestaña **Control de Pagos** la **ven todos** los usuarios autorizados (solo lectura);
-**solo el admin** puede registrar/editar pagos. Por cada usuario muestra:
+La pestaña **Control de Pagos** la ven todos los usuarios autorizados, pero **cada quien
+solo ve SU propio saldo**; **solo el admin** ve a todos y puede registrar/editar pagos.
+Los usuarios con **0 pronósticos enviados** se ordenan al final. Por cada usuario muestra:
 **pronósticos enviados**, **dinero pagado** y **disponible**. Un pronóstico se considera
 **enviado** (y cuesta **$1**) cuando **su partido ya cerró** (15 min antes del juego, igual
 que el bloqueo) **y** el usuario había registrado un marcador (cada `slot` digitado = $1),

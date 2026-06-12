@@ -17,9 +17,10 @@
 --       * Si puso más pronósticos de los que pagó => negativo (en rojo en la UI).
 --
 --  Expone get_control_pagos() (security definer: necesita leer TODAS las
---  predicciones, que el RLS normalmente oculta). Devuelve filas a cualquier
---  usuario AUTORIZADO (solo lectura); solo el admin puede REGISTRAR/borrar pagos
---  (RLS de la tabla pagos).
+--  predicciones, que el RLS normalmente oculta). El ADMIN ve a todos; un usuario
+--  normal AUTORIZADO solo ve SU propio saldo (solo lectura). Solo el admin puede
+--  REGISTRAR/borrar pagos (RLS de la tabla pagos). Los usuarios con 0 pronósticos
+--  enviados se ordenan al final.
 --
 --  Ejecutar DESPUÉS de:
 --    schema.sql, migracion_lock_por_partido.sql,
@@ -84,8 +85,11 @@ language sql stable security definer set search_path = public as $$
   left join enviados e on e.user_id = pr.id
   left join pagado   pg on pg.user_id = pr.id
   where (pr.aprobado or pr.is_admin)
-    and is_approved(auth.uid())   -- cualquier usuario AUTORIZADO puede VER el resumen
-  order by disponible asc, pr.nombre asc;
+    and is_approved(auth.uid())          -- debe estar autorizado para ver algo
+    -- El admin ve a TODOS; un usuario normal solo ve SU propio saldo.
+    and (is_admin(auth.uid()) or pr.id = auth.uid())
+  -- Primero quienes ya enviaron pronósticos; los de 0 enviados quedan al final.
+  order by (coalesce(e.n, 0) = 0) asc, disponible asc, pr.nombre asc;
 $$;
 
 revoke all on function get_control_pagos() from public;
