@@ -1060,35 +1060,35 @@ async function renderControlPagos() {
 
   // Solo el admin puede registrar/editar pagos; los demás usuarios solo ven.
   const esAdmin = !!S.profile?.is_admin;
-  cont.innerHTML = `
-    <table class="pagos-tabla">
-      <thead>
-        <tr><th>Jugador</th><th>Enviados</th><th>A pagar</th><th>Pagado</th><th>Disponible</th>${esAdmin ? "<th>Registrar pago</th>" : ""}</tr>
-      </thead>
-      <tbody>
-        ${data.map((r) => {
-          const env = Number(r.pronosticos_enviados);
-          const disp = Number(r.disponible);
-          const yo = r.user_id === S.user.id;
-          const accion = esAdmin
-            ? `<td class="p-pago">
-                <input type="number" step="0.01" class="pago-monto" data-uid="${r.user_id}"
-                       placeholder="0.00" aria-label="Monto a registrar para ${esc(r.nombre)}" />
-                <button class="btn small" data-pago="${r.user_id}" data-nombre="${esc(r.nombre)}">Abonar</button>
-                <button class="btn small ghost" data-histpago="${r.user_id}" data-nombre="${esc(r.nombre)}">Historial</button>
-              </td>`
-            : "";
-          return `<tr class="${yo ? "me" : ""}">
-            <td class="p-nombre">${esc(r.nombre || "(sin nombre)")}${yo ? " (tú)" : ""}</td>
-            <td class="p-num">${env}</td>
-            <td class="p-num">${money(env)}</td>
-            <td class="p-num">${money(r.dinero_pagado)}</td>
-            <td class="p-num ${disp < 0 ? "neg" : "pos"}">${money(disp)}</td>
-            ${accion}
-          </tr>`;
-        }).join("")}
-      </tbody>
-    </table>`;
+  cont.innerHTML = data.map((r) => {
+    const env = Number(r.pronosticos_enviados);
+    const disp = Number(r.disponible);
+    const yo = r.user_id === S.user.id;
+    const accion = esAdmin
+      ? `<div class="pago-card-form">
+           <input type="number" step="0.01" class="pago-monto" data-uid="${r.user_id}"
+                  placeholder="Monto $" aria-label="Monto a registrar para ${esc(r.nombre)}" />
+           <button class="btn small" data-pago="${r.user_id}" data-nombre="${esc(r.nombre)}">Abonar</button>
+           <button class="btn small ghost" data-histpago="${r.user_id}" data-nombre="${esc(r.nombre)}">Historial</button>
+         </div>`
+      : "";
+    return `
+      <div class="pago-card ${yo ? "me" : ""} ${disp < 0 ? "debe" : ""}">
+        <div class="pago-card-head">
+          <span class="pc-nombre">${esc(r.nombre || "(sin nombre)")}${yo ? " (tú)" : ""}</span>
+          <span class="pc-disp ${disp < 0 ? "neg" : "pos"}">
+            <span class="pc-disp-val">${money(disp)}</span>
+            <span class="pc-disp-lbl">disponible</span>
+          </span>
+        </div>
+        <div class="pago-card-stats">
+          <div class="pc-stat"><span class="pc-val">${env}</span><span class="pc-lbl">enviados</span></div>
+          <div class="pc-stat"><span class="pc-val">${money(env)}</span><span class="pc-lbl">a pagar</span></div>
+          <div class="pc-stat"><span class="pc-val">${money(r.dinero_pagado)}</span><span class="pc-lbl">pagado</span></div>
+        </div>
+        ${accion}
+      </div>`;
+  }).join("");
 
   if (esAdmin) {
     cont.querySelectorAll("[data-pago]").forEach((b) =>

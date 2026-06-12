@@ -299,22 +299,37 @@
 .super-log-row{padding:.5rem .2rem; border-bottom:1px solid var(--line2); font-size:.86rem}
 .super-log-row .small{margin-top:.15rem}
 
-/* ===================== CONTROL DE PAGOS (admin) ===================== */
+/* ===================== CONTROL DE PAGOS ===================== */
 .pagos-resumen{display:flex; flex-wrap:wrap; gap:.6rem; margin:.4rem 0 1rem}
 .pagos-resumen .big.neg{color:#c0392b}
-.pagos-tabla{width:100%; border-collapse:collapse; font-size:.9rem}
-.pagos-tabla th,.pagos-tabla td{padding:.5rem .45rem; border-bottom:1px solid var(--line2); text-align:center}
-.pagos-tabla th{color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em}
-.pagos-tabla td.p-nombre{text-align:left; font-weight:700}
-.pagos-tabla td.p-num{font-variant-numeric:tabular-nums; white-space:nowrap}
-.pagos-tabla td.p-num.neg{color:#c0392b; font-weight:800}
-.pagos-tabla td.p-num.pos{color:var(--green); font-weight:700}
-.pagos-tabla tr:hover{background:var(--panel2)}
-.pagos-tabla tr.me{background:rgba(10,49,97,.07)}
-.pagos-tabla .p-pago{display:flex; gap:.35rem; align-items:center; justify-content:flex-end; flex-wrap:wrap}
-.pagos-tabla .pago-monto{width:5.5rem; padding:.35rem .5rem; border:1px solid var(--line);
-  border-radius:8px; font:inherit; text-align:right}
-@media (max-width:560px){
-  .pagos-tabla th:nth-child(3),.pagos-tabla td:nth-child(3){display:none} /* oculta "A pagar" en móvil */
-  .pagos-tabla .p-pago{justify-content:flex-start}
+
+.pagos-admin{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.7rem}
+.pago-card{border:1px solid var(--line); border-radius:14px; padding:.7rem .8rem;
+  background:var(--panel); box-shadow:var(--shadow); display:flex; flex-direction:column; gap:.6rem}
+.pago-card.me{border-color:var(--blue); background:rgba(10,49,97,.05)}
+.pago-card.debe{border-left:4px solid #c0392b}
+
+.pago-card-head{display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem}
+.pc-nombre{font-weight:800; line-height:1.2}
+.pc-disp{display:flex; flex-direction:column; align-items:flex-end; text-align:right; white-space:nowrap}
+.pc-disp-val{font-size:1.15rem; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.1}
+.pc-disp-lbl{font-size:.66rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.pc-disp.neg .pc-disp-val{color:#c0392b}
+.pc-disp.pos .pc-disp-val{color:var(--green)}
+
+.pago-card-stats{display:flex; gap:.4rem}
+.pc-stat{flex:1 1 0; background:var(--bg2); border:1px solid var(--line);
+  border-radius:10px; padding:.4rem .3rem; display:flex; flex-direction:column;
+  align-items:center; gap:.1rem; text-align:center}
+.pc-val{font-weight:800; font-variant-numeric:tabular-nums; font-size:.95rem}
+.pc-lbl{font-size:.64rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em}
+
+.pago-card-form{display:flex; gap:.35rem; flex-wrap:wrap; align-items:center;
+  border-top:1px dashed var(--line); padding-top:.55rem}
+.pago-card-form .pago-monto{flex:1 1 5.5rem; min-width:5rem; padding:.45rem .55rem;
+  border:1px solid var(--line); border-radius:8px; font:inherit; text-align:right}
+.pago-card-form .btn{flex:0 0 auto}
+
+@media(max-width:420px){
+  .pagos-admin{grid-template-columns:1fr}
 }
