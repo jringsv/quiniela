@@ -855,10 +855,12 @@ function detalleLeaderboard(nombre) {
         <td class="lbd-pts">${pts}${motivo ? `<span class="lbd-mot">${motivo}</span>` : ""}</td>
       </tr>`;
   }).join("");
-  return `<table class="lb-detalle-tabla">
+  const nPartidos = new Set(rows.map((r) => r.numero)).size;
+  return `<div class="lbd-cap">${nPartidos} ${nPartidos === 1 ? "partido finalizado" : "partidos finalizados"}</div>
+    <table class="lb-detalle-tabla">
       <thead><tr><th>#</th><th>Partido</th><th>Real</th><th>Pronóstico</th><th>Pts</th></tr></thead>
       <tbody>${trs}</tbody>
-      <tfoot><tr><td colspan="4">Total (partidos finalizados)</td><td class="lbd-pts">${total}</td></tr></tfoot>
+      <tfoot><tr><td colspan="4">Total de puntos</td><td class="lbd-pts">${total}</td></tr></tfoot>
     </table>`;
 }
 // ============================================================
