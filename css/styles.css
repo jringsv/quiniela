@@ -178,6 +178,28 @@ input[type=number]{width:60px; text-align:center; padding:.5rem .35rem; font-wei
 .live{font-size:.7rem; color:var(--green); margin-left:.5rem; font-weight:700; animation:pulse 1.6s infinite}
 @keyframes pulse{50%{opacity:.35}}
 
+/* ---------- Detalle por jugador (Posiciones) ---------- */
+.ver-detalle{margin-left:.5rem; padding:.12rem .5rem; font-size:.7rem; font-weight:700;
+  color:var(--blue); background:var(--bg2); border:1px solid var(--line2);
+  border-radius:999px; cursor:pointer; white-space:nowrap}
+.ver-detalle:hover{background:var(--panel2)}
+.leaderboard tr.lb-detalle:hover{background:transparent}
+.leaderboard tr.lb-detalle > td{padding:0 0 .6rem; border-bottom:1px solid var(--line2)}
+.lb-detalle-tabla{width:100%; border-collapse:collapse; background:var(--bg2); border-radius:10px; overflow:hidden}
+.lb-detalle-tabla th,.lb-detalle-tabla td{padding:.4rem .5rem; text-align:center; border-bottom:1px solid var(--line2); font-size:.82rem}
+.lb-detalle-tabla th{color:var(--muted); font-size:.66rem; text-transform:uppercase; letter-spacing:.04em; font-weight:700}
+.lb-detalle-tabla td.lbd-part{text-align:left; font-weight:600}
+.lb-detalle-tabla .vs{color:var(--muted); font-weight:400; font-size:.74rem}
+.lb-detalle-tabla td.lbd-pts{font-weight:900}
+.lb-detalle-tabla .lbd-mot{display:block; font-size:.6rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.03em}
+.lb-detalle-tabla tr.ok3{background:rgba(0,104,71,.10)}
+.lb-detalle-tabla tr.ok1{background:rgba(10,49,97,.06)}
+.lb-detalle-tabla tr.ok3 td.lbd-pts{color:var(--green)}
+.lb-detalle-tabla tr.ok1 td.lbd-pts{color:var(--blue)}
+.lb-detalle-tabla tr.zero td.lbd-pts{color:var(--muted)}
+.lb-detalle-tabla tfoot td{font-weight:900; background:var(--panel2); border-bottom:none}
+.lb-detalle-tabla tfoot td.lbd-pts{color:var(--blue); font-size:1rem}
+
 /* ---------- Admin ---------- */
 .admin .partido input{width:54px}
 .admin-import textarea{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.82rem; background:var(--panel2)}

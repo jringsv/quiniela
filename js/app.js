@@ -791,16 +791,75 @@ function renderCalendario() {
 //  VISTA: DASHBOARD
 // ============================================================
 async function cargarLeaderboard() {
-  const { data, error } = await sb.rpc("get_leaderboard");
   const body = $("#leaderboardBody");
+  // Traemos la tabla y, en paralelo, el detalle por partido (solo partidos ya
+  // cerrados; el backend nunca devuelve pronósticos de partidos abiertos).
+  const [{ data, error }, det] = await Promise.all([
+    sb.rpc("get_leaderboard"),
+    sb.rpc("get_pronosticos_bloqueados"),
+  ]);
   if (error) { body.innerHTML = `<tr><td colspan="4" class="muted">Error: ${error.message}</td></tr>`; return; }
   if (!data?.length) { body.innerHTML = '<tr><td colspan="4" class="muted">Sin jugadores aún.</td></tr>'; return; }
+  // Agrupa por jugador SOLO los partidos FINALIZADOS (con resultado real cargado).
+  S.detalleLB = new Map();
+  (det?.data || []).forEach((r) => {
+    if (r.gol_local_real == null || r.gol_visitante_real == null) return; // aún sin resultado real
+    if (!S.detalleLB.has(r.nombre)) S.detalleLB.set(r.nombre, []);
+    S.detalleLB.get(r.nombre).push(r);
+  });
   body.innerHTML = data.map((r, i) => {
     const rank = i + 1, medalla = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
     const cls = rank <= 3 ? "rank" + rank : "", me = r.nombre === S.profile?.nombre ? "me" : "";
-    return `<tr class="${me} ${cls}"><td>${medalla}</td><td>${r.nombre}</td>
-      <td>${r.pts_partidos}</td><td class="total">${r.total}</td></tr>`;
+    const hayDet = (S.detalleLB.get(r.nombre) || []).length > 0;
+    const btn = hayDet ? ` <button type="button" class="ver-detalle" aria-expanded="false">Ver detalle</button>` : "";
+    return `<tr class="${me} ${cls}"><td>${medalla}</td><td>${esc(r.nombre)}${btn}</td>
+      <td>${r.pts_partidos}</td><td class="total">${r.total}</td></tr>
+      <tr class="lb-detalle hidden"><td colspan="4">${hayDet ? detalleLeaderboard(r.nombre) : ""}</td></tr>`;
   }).join("");
+  // Conecta cada botón "Ver detalle" con la fila de detalle que va justo debajo.
+  body.querySelectorAll(".ver-detalle").forEach((b) => {
+    b.onclick = () => {
+      const fila = b.closest("tr").nextElementSibling;
+      if (!fila) return;
+      const oculto = fila.classList.toggle("hidden");
+      b.setAttribute("aria-expanded", oculto ? "false" : "true");
+      b.textContent = oculto ? "Ver detalle" : "Ocultar detalle";
+    };
+  });
+}
+// Tabla de detalle (igual que la de posiciones): un renglón por pronóstico de un
+// partido ya FINALIZADO, con resultado real, marcador del jugador y puntos
+// (misma regla que get_leaderboard: 3 exacto · 1 acertar resultado · 0 fallar;
+// un partido marcado "no aplica" no suma). El total puede ser menor al de la
+// tabla si hay partidos cerrados sin resultado todavía.
+function detalleLeaderboard(nombre) {
+  const rows = (S.detalleLB.get(nombre) || []).slice()
+    .sort((a, b) => (a.numero || 0) - (b.numero || 0) || (a.slot || 1) - (b.slot || 1));
+  if (!rows.length) return '<p class="muted small">Sin partidos finalizados todavía.</p>';
+  const signo = (x) => (x > 0 ? 1 : x < 0 ? -1 : 0);
+  let total = 0;
+  const trs = rows.map((r) => {
+    const aplica = S.partidos.find((p) => p.id === r.partido_id)?.aplica_quiniela !== false;
+    let pts = 0, motivo = "";
+    if (!aplica) { pts = 0; motivo = "no suma"; }
+    else if (r.pred_local === r.gol_local_real && r.pred_visitante === r.gol_visitante_real) { pts = 3; motivo = "exacto"; }
+    else if (signo(r.pred_local - r.pred_visitante) === signo(r.gol_local_real - r.gol_visitante_real)) { pts = 1; motivo = "resultado"; }
+    total += pts;
+    const dup = rows.filter((x) => x.numero === r.numero).length > 1;   // tiene 2 pronósticos
+    const cls = pts === 3 ? "ok3" : pts === 1 ? "ok1" : "zero";
+    return `<tr class="${cls}">
+        <td>${r.numero}${dup ? ` · P${r.slot}` : ""}</td>
+        <td class="lbd-part">${esc(r.equipo_local)} <span class="vs">vs</span> ${esc(r.equipo_visitante)}</td>
+        <td>${r.gol_local_real}-${r.gol_visitante_real}</td>
+        <td>${r.pred_local}-${r.pred_visitante}</td>
+        <td class="lbd-pts">${pts}${motivo ? `<span class="lbd-mot">${motivo}</span>` : ""}</td>
+      </tr>`;
+  }).join("");
+  return `<table class="lb-detalle-tabla">
+      <thead><tr><th>#</th><th>Partido</th><th>Real</th><th>Pronóstico</th><th>Pts</th></tr></thead>
+      <tbody>${trs}</tbody>
+      <tfoot><tr><td colspan="4">Total (partidos finalizados)</td><td class="lbd-pts">${total}</td></tr></tfoot>
+    </table>`;
 }
 // ============================================================
 //  VISTA: PREMIOS (dinero por marcador exacto)
