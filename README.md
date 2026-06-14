@@ -236,7 +236,9 @@ seguidos quedan sin ganador, **todos** se acumulan hasta el próximo con ganador
 
 Lo calcula `get_premios_marcador()` (devuelve `premio_total` = 75 % base del partido,
 `premio_acumulado` = lo traído de partidos previos sin ganador, y `premio_a_repartir` =
-suma de ambos). La acumulación se resuelve con un patrón de **"islas"** sobre el orden por
-`partidos.numero`. Lo ejecuta
+suma de ambos). La acumulación se resuelve con un patrón de **"islas"** en orden
+**cronológico** (`partidos.fecha`, con `numero` solo como desempate), **no** por número de
+partido: el `numero` no siempre coincide con el orden en que se juegan (p. ej. el 13/06 se
+jugaron Qatar–Suiza #8 y Brasil–Marruecos #7 antes que Haití–Escocia #5). Lo ejecuta
 [`supabase/migracion_premios_acumulado.sql`](supabase/migracion_premios_acumulado.sql), que se
 corre **después** de [`supabase/migracion_premios_pagado.sql`](supabase/migracion_premios_pagado.sql).

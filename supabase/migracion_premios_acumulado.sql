@@ -32,10 +32,14 @@
 --  Implementación: problema clásico de "islas" (gaps & islands). Cada
 --  isla agrupa los partidos sin ganador con el siguiente partido con
 --  ganador que los cierra. La isla se identifica por la cantidad de
---  partidos CON ganador que ocurrieron ANTES (en orden de número).
+--  partidos CON ganador que ocurrieron ANTES.
 --
---  NOTA: el orden de acumulación es por `partidos.numero`. Se asume que
---  los resultados se cargan en ese mismo orden (lo normal en el torneo).
+--  IMPORTANTE: el orden de acumulación es CRONOLÓGICO (por `partidos.fecha`,
+--  con `numero` solo como desempate), NO por `numero`. El número de partido
+--  no siempre coincide con el orden en que se juegan: p. ej. el 13/06 se jugó
+--  Qatar–Suiza (#8, 13:00) y Brasil–Marruecos (#7, 16:00) ANTES que
+--  Haití–Escocia (#5, 19:00), así que el acumulado de los dos primeros debe
+--  caer en Haití–Escocia y limpiarse ahí.
 --
 --  Ejecutar DESPUÉS de: migracion_premios_pagado.sql
 --  Es idempotente.
@@ -125,25 +129,25 @@ language sql stable security definer set search_path = public as $$
     left join gan_agg g on g.partido_id = j.id
   ),
   islas as (
-    -- isla = cantidad de partidos CON ganador ANTES de este (orden por número).
-    -- Así, los partidos sin ganador comparten isla con el siguiente partido
-    -- con ganador (que es la última fila de la isla, pues cerrarla incrementa
-    -- el contador para la siguiente).
+    -- isla = cantidad de partidos CON ganador ANTES de este (orden CRONOLÓGICO
+    -- por fecha, con numero como desempate). Así, los partidos sin ganador
+    -- comparten isla con el siguiente partido con ganador (que es la última
+    -- fila de la isla, pues cerrarla incrementa el contador para la siguiente).
     select *,
       coalesce(
         sum(case when tuvo_ganador then 1 else 0 end)
-          over (order by numero rows between unbounded preceding and 1 preceding),
+          over (order by fecha, numero rows between unbounded preceding and 1 preceding),
         0
       ) as isla
     from base
   ),
   acum as (
     -- premio_acumulado = suma de las bases (75%) de los partidos PREVIOS
-    -- de la misma isla (todos ellos sin ganador).
+    -- de la misma isla (todos ellos sin ganador), en orden cronológico.
     select *,
       coalesce(
         sum(premio_base)
-          over (partition by isla order by numero
+          over (partition by isla order by fecha, numero
                 rows between unbounded preceding and 1 preceding),
         0
       ) as premio_acumulado
@@ -164,7 +168,7 @@ language sql stable security definer set search_path = public as $$
     coalesce(a.nombres, '[]'::jsonb)                as ganadores,
     (a.n_gan > 0 and a.n_pagados = a.n_gan)         as todos_pagados
   from acum a
-  order by a.numero;
+  order by a.fecha, a.numero;   -- cronológico: igual que la acumulación
 $$;
 
 grant execute on function get_premios_marcador() to anon, authenticated;
