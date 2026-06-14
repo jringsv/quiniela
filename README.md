@@ -220,3 +220,23 @@ El admin registra abonos (positivos, o negativos para corregir) que se guardan e
 `get_control_pagos()` (security definer; responde a cualquier usuario autorizado, pero la
 escritura sigue bloqueada al admin). Lo ejecuta
 [`supabase/migracion_control_pagos.sql`](supabase/migracion_control_pagos.sql).
+
+## 🏆 Premios y acumulación
+Por cada partido jugado se forma un **bote** (cada pronóstico enviado de un participante
+activado = **$1**). El **premio** es el **75 %** del bote (el 25 % es de la organización) y se
+reparte **en partes iguales** entre quienes acertaron el **marcador exacto**.
+
+**Regla de acumulación:** _un partido sin acierto acumula su premio para el siguiente partido._
+Si **nadie acierta** un partido, ese 75 % **no se pierde**: se **acumula** y se suma al
+**siguiente partido (en orden de número) que sí tenga ganador(es)**. Si varios partidos
+seguidos quedan sin ganador, **todos** se acumulan hasta el próximo con ganador.
+
+> Ejemplo: en un día con tres partidos, los partidos 1 y 2 quedan sin ganador → su 75 % se
+> acumula; el partido 3 sí tiene ganadores → reparte **su 75 % + lo acumulado de 1 y 2**.
+
+Lo calcula `get_premios_marcador()` (devuelve `premio_total` = 75 % base del partido,
+`premio_acumulado` = lo traído de partidos previos sin ganador, y `premio_a_repartir` =
+suma de ambos). La acumulación se resuelve con un patrón de **"islas"** sobre el orden por
+`partidos.numero`. Lo ejecuta
+[`supabase/migracion_premios_acumulado.sql`](supabase/migracion_premios_acumulado.sql), que se
+corre **después** de [`supabase/migracion_premios_pagado.sql`](supabase/migracion_premios_pagado.sql).

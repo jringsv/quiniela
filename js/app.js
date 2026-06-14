@@ -798,8 +798,8 @@ async function cargarLeaderboard() {
     sb.rpc("get_leaderboard"),
     sb.rpc("get_pronosticos_bloqueados"),
   ]);
-  if (error) { body.innerHTML = `<tr><td colspan="4" class="muted">Error: ${error.message}</td></tr>`; return; }
-  if (!data?.length) { body.innerHTML = '<tr><td colspan="4" class="muted">Sin jugadores aún.</td></tr>'; return; }
+  if (error) { body.innerHTML = `<tr><td colspan="5" class="muted">Error: ${error.message}</td></tr>`; return; }
+  if (!data?.length) { body.innerHTML = '<tr><td colspan="5" class="muted">Sin jugadores aún.</td></tr>'; return; }
   // Agrupa por jugador SOLO los partidos FINALIZADOS (con resultado real cargado).
   S.detalleLB = new Map();
   (det?.data || []).forEach((r) => {
@@ -813,8 +813,8 @@ async function cargarLeaderboard() {
     const hayDet = (S.detalleLB.get(r.nombre) || []).length > 0;
     const btn = hayDet ? ` <button type="button" class="ver-detalle" aria-expanded="false">Ver detalle</button>` : "";
     return `<tr class="${me} ${cls}"><td>${medalla}</td><td>${esc(r.nombre)}${btn}</td>
-      <td>${r.pts_partidos}</td><td class="total">${r.total}</td></tr>
-      <tr class="lb-detalle hidden"><td colspan="4">${hayDet ? detalleLeaderboard(r.nombre) : ""}</td></tr>`;
+      <td>${r.marcadores}</td><td>${r.ganadores}</td><td class="total">${r.total}</td></tr>
+      <tr class="lb-detalle hidden"><td colspan="5">${hayDet ? detalleLeaderboard(r.nombre) : ""}</td></tr>`;
   }).join("");
   // Conecta cada botón "Ver detalle" con la fila de detalle que va justo debajo.
   body.querySelectorAll(".ver-detalle").forEach((b) => {
@@ -881,7 +881,9 @@ async function cargarPremios() {
     return;
   }
   // Resumen global: total repartido y total recaudado.
-  const totRepartido = data.reduce((a, r) => a + (r.n_ganadores > 0 ? Number(r.premio_total) : 0), 0);
+  // Lo repartido en un partido con ganador es premio_a_repartir (su 75% base
+  // MÁS lo acumulado de partidos previos sin ganador).
+  const totRepartido = data.reduce((a, r) => a + (r.n_ganadores > 0 ? Number(r.premio_a_repartir ?? r.premio_total) : 0), 0);
   const totBote = data.reduce((a, r) => a + Number(r.bote), 0);
   res.innerHTML = `
     <div class="premio-stat"><span class="big">${money(totRepartido)}</span><span class="lbl">repartido en premios</span></div>
@@ -909,6 +911,9 @@ async function cargarPremios() {
       return `<span class="g-pago ro ${g.pagado ? "on" : ""}"
                 title="${g.pagado ? "Pagado" : "Pendiente"}">${g.pagado ? "✅ Pagado" : "⬜ Pendiente"}</span>`;
     };
+    // Lo que realmente se reparte (o se acumula) = 75% base + acumulado previo.
+    const acumulado = Number(r.premio_acumulado || 0);
+    const aRepartir = Number(r.premio_a_repartir ?? r.premio_total);
     const ganHtml = hayGan
       ? `<ul class="premio-ganadores">${ganadores.map((g) =>
           `<li class="${g.nombre === yo ? "me" : ""} ${g.pagado ? "pagado" : ""}">
@@ -916,7 +921,13 @@ async function cargarPremios() {
              <span class="g-monto">${money(r.premio_por_ganador)}</span>
              ${chkGan(g)}
            </li>`).join("")}</ul>`
-      : `<p class="premio-sin">Nadie acertó el marcador exacto. El premio (${money(r.premio_total)}) no se reparte.</p>`;
+      : `<p class="premio-sin">Nadie acertó el marcador exacto. El premio (${money(aRepartir)}) se acumula para el siguiente partido. 🔁</p>`;
+    // Línea informativa de acumulación (cuando este partido arrastra premio de
+    // partidos previos sin ganador).
+    const acumHtml = acumulado > 0
+      ? `<span title="Premio acumulado de partidos previos sin ganador">🔁 Acumulado previo: <strong>${money(acumulado)}</strong></span>
+         <span>🎯 Total ${hayGan ? "a repartir" : "acumulado"}: <strong>${money(aRepartir)}</strong></span>`
+      : "";
     // Badge "PAGADO" cuando todos los ganadores del partido están marcados.
     const badge = r.todos_pagados ? `<span class="premio-pagado-badge">✅ PAGADO</span>` : "";
     // Botón de conveniencia (solo admin) para marcar/desmarcar todo el partido.
@@ -941,6 +952,7 @@ async function cargarPremios() {
         <div class="premio-info">
           <span title="${r.n_pronosticos} pronóstico(s) × $1">🎟️ Recaudado: <strong>${money(r.bote)}</strong></span>
           <span>💰 Premio (75%): <strong>${money(r.premio_total)}</strong></span>
+          ${acumHtml}
           <span>🏆 Ganadores: <strong>${r.n_ganadores}</strong></span>
         </div>
         ${ganHtml}

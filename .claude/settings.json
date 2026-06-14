@@ -48,7 +48,8 @@
       "Bash(curl -s -X POST https://stroxsyzojuwhbalamob.supabase.co/rest/v1/rpc/get_pronosticos_bloqueados -H 'apikey: sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Authorization: Bearer sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Content-Type: application/json' -d '{}' -o /tmp/pron2.json -w 'HTTP %{http_code}\\\\n')",
       "Bash(curl -s -X POST https://stroxsyzojuwhbalamob.supabase.co/rest/v1/rpc/get_leaderboard -H 'apikey: sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Authorization: Bearer sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Content-Type: application/json' -d '{}' -o /tmp/lb2.json -w 'HTTP %{http_code}\\\\n')",
       "Bash(curl -s -X POST https://stroxsyzojuwhbalamob.supabase.co/rest/v1/rpc/get_pronosticos_bloqueados -H 'apikey: sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Authorization: Bearer sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Content-Type: application/json' -d '{}' -o /tmp/pron3.json -w 'HTTP %{http_code}\\\\n')",
-      "Bash(curl -s -X POST https://stroxsyzojuwhbalamob.supabase.co/rest/v1/rpc/get_leaderboard -H 'apikey: sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Authorization: Bearer sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Content-Type: application/json' -d '{}' -o /tmp/lb3.json -w 'HTTP %{http_code}\\\\n')"
+      "Bash(curl -s -X POST https://stroxsyzojuwhbalamob.supabase.co/rest/v1/rpc/get_leaderboard -H 'apikey: sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Authorization: Bearer sb_publishable_-Z8l-mWgN6OwHNaaHsHs_A_IAKlEwlc' -H 'Content-Type: application/json' -d '{}' -o /tmp/lb3.json -w 'HTTP %{http_code}\\\\n')",
+      "Bash(xargs grep -l \"acumul\\\\|sin acierto\\\\|partido sin\")"
     ],
     "additionalDirectories": [
       "\\tmp"
