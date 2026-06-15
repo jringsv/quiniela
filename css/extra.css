@@ -239,6 +239,8 @@
 .pron-cerrados-mini.admin-peek .pcm-title{color:var(--blue)}
 .pcm-title{font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
   color:var(--muted); margin-bottom:.3rem}
+.pcm-count{display:inline-block; margin-left:.3rem; padding:.02rem .35rem; border-radius:999px;
+  background:var(--bg2); color:var(--ink); font-weight:700; letter-spacing:0; text-transform:none}
 .pron-cerrados-mini ul{list-style:none; margin:0; padding:0;
   display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.2rem .4rem}
 .pron-cerrados-mini li{display:flex; justify-content:space-between; align-items:center; gap:.35rem;

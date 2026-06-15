@@ -367,8 +367,11 @@ function bloquePronosticosCerrados(p) {
         <span class="pcm-mar">${r.pred_local}-${r.pred_visitante}${r.acerto ? " ✅" : ""}</span>
       </li>`;
   }).join("");
+  // Total de PARTICIPANTES distintos (no de pronósticos: alguien con 2 cuenta 1).
+  const nParticipantes = new Set(preds.map((r) => r.nombre)).size;
+  const cntPart = `<span class="pcm-count">👥 ${nParticipantes} participante${nParticipantes === 1 ? "" : "s"}</span>`;
   // Si aún no cierra y solo lo ve el admin, lo indicamos para evitar confusiones.
-  const title = cerrado ? "🔒 Pronósticos de todos" : "👁️ Pronósticos de todos (vista admin · aún abierto)";
+  const title = (cerrado ? "🔒 Pronósticos de todos" : "👁️ Pronósticos de todos (vista admin · aún abierto)") + " " + cntPart;
   // Pie de auditoría: la edición más reciente de este partido y quién la registró.
   const conFecha = preds.filter((r) => r.actualizado_en);
   const ult = conFecha.length
@@ -885,9 +888,13 @@ async function cargarPremios() {
   // MÁS lo acumulado de partidos previos sin ganador).
   const totRepartido = data.reduce((a, r) => a + (r.n_ganadores > 0 ? Number(r.premio_a_repartir ?? r.premio_total) : 0), 0);
   const totBote = data.reduce((a, r) => a + Number(r.bote), 0);
+  // 25% de la organización: lo que NO se reparte como premio (bote - 75% base),
+  // acumulado sobre TODOS los partidos con resultado.
+  const totOrg = data.reduce((a, r) => a + (Number(r.bote) - Number(r.premio_total)), 0);
   res.innerHTML = `
-    <div class="premio-stat"><span class="big">${money(totRepartido)}</span><span class="lbl">repartido en premios</span></div>
     <div class="premio-stat"><span class="big">${money(totBote)}</span><span class="lbl">recaudado en total</span></div>
+    <div class="premio-stat"><span class="big">${money(totRepartido)}</span><span class="lbl">repartido en premios</span></div>
+    <div class="premio-stat"><span class="big">${money(totOrg)}</span><span class="lbl">25% organización (acumulado)</span></div>
     <div class="premio-stat"><span class="big">${data.length}</span><span class="lbl">partidos con resultado</span></div>`;
 
   // Solo el admin puede marcar/desmarcar pagos; los demás usuarios solo consultan.
@@ -914,6 +921,8 @@ async function cargarPremios() {
     // Lo que realmente se reparte (o se acumula) = 75% base + acumulado previo.
     const acumulado = Number(r.premio_acumulado || 0);
     const aRepartir = Number(r.premio_a_repartir ?? r.premio_total);
+    // 25% del bote que retiene la organización en este partido (bote - 75%).
+    const orgPartido = Number(r.bote) - Number(r.premio_total);
     const ganHtml = hayGan
       ? `<ul class="premio-ganadores">${ganadores.map((g) =>
           `<li class="${g.nombre === yo ? "me" : ""} ${g.pagado ? "pagado" : ""}">
@@ -950,8 +959,9 @@ async function cargarPremios() {
           <span class="eq v">${teamRow(r.equipo_visitante)}</span>
         </div>
         <div class="premio-info">
-          <span title="${r.n_pronosticos} pronóstico(s) × $1">🎟️ Recaudado: <strong>${money(r.bote)}</strong></span>
+          <span title="${r.n_pronosticos} pronóstico(s) × $1 — total recaudado del partido">🎟️ Recaudado: <strong>${money(r.bote)}</strong></span>
           <span>💰 Premio (75%): <strong>${money(r.premio_total)}</strong></span>
+          <span title="25% del bote que retiene la organización">🏦 Organización (25%): <strong>${money(orgPartido)}</strong></span>
           ${acumHtml}
           <span>🏆 Ganadores: <strong>${r.n_ganadores}</strong></span>
         </div>
@@ -1447,6 +1457,53 @@ async function resetResultadosReales() {
   }
 }
 { const b = $("#resetResultadosBtn"); if (b) b.onclick = resetResultadosReales; }
+
+// Activa con 1 pronóstico a TODOS los usuarios autorizados en los partidos de HOY
+// (día en hora El Salvador, GMT-6) que aún no han cerrado. Solo agrega: a quien ya
+// esté activado (1 ó 2) no lo toca; así no degrada a quien el admin puso con 2.
+async function habilitarHoyTodos() {
+  if (!S.profile?.is_admin) return;
+  const m = $("#habilitarHoyMsg");
+  const usuarios = S.adminUsers || [];
+  if (!usuarios.length) { msg(m, "No hay usuarios autorizados todavía.", false); return; }
+
+  const hoyKey = diaKey(new Date(nowMs()).toISOString());
+  const abiertos = (S.partidos || []).filter(
+    (p) => p.fecha && diaKey(p.fecha) === hoyKey && !partidoBloqueado(p),
+  );
+  if (!abiertos.length) { msg(m, "Hoy no hay partidos abiertos por habilitar.", false); return; }
+
+  if (!confirm(`¿Habilitar ${abiertos.length} partido(s) de HOY con 1 pronóstico para ` +
+    `${usuarios.length} usuario(s) autorizado(s)?\n\nA quien ya esté activado no se le cambia.`)) return;
+
+  const btn = $("#habilitarHoyBtn"); if (btn) btn.disabled = true;
+  try {
+    // Solo inserta a los usuarios que aún NO participan (n_pred 0) en cada partido.
+    const filas = [];
+    abiertos.forEach((p) => {
+      const yaActivos = (S.activByPartido && S.activByPartido[p.id]) || new Map();
+      usuarios.forEach((u) => {
+        if (!yaActivos.has(u.id)) filas.push({ partido_id: p.id, user_id: u.id, n_pred: 1 });
+      });
+    });
+    if (!filas.length) { msg(m, "Todos los autorizados ya estaban activados en los partidos de hoy.", true); return; }
+
+    const { error } = await sb.from("partido_usuario").insert(filas);
+    if (error) throw error;
+
+    // Refresca el estado en memoria y la vista del admin.
+    await cargarAdminActivacion();
+    renderAdminPartidos();
+    msg(m, `✅ Habilitados ${abiertos.length} partido(s) de hoy · ${filas.length} activación(es) nueva(s).`, true);
+  } catch (e) {
+    msg(m, "Error: " + e.message, false);
+    await cargarAdminActivacion();
+    renderAdminPartidos();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+{ const b = $("#habilitarHoyBtn"); if (b) b.onclick = habilitarHoyTodos; }
 
 $("#importBtn").onclick = async () => {
   const txt = $("#importBox").value.trim(); if (!txt) return;
