@@ -137,6 +137,15 @@ input[type=number]{width:60px; text-align:center; padding:.5rem .35rem; font-wei
 /* ---------- Partidos ---------- */
 .grupo-h{margin:1.1rem 0 .4rem; font-weight:800; font-size:.96rem; color:var(--blue);
   padding:.3rem .6rem; border-radius:9px; background:var(--bg2); border-left:5px solid var(--blue)}
+.partidos-anteriores{margin:.4rem 0 .8rem; border:1px solid var(--line2); border-radius:11px;
+  background:var(--bg2); overflow:hidden}
+.partidos-anteriores>summary{cursor:pointer; padding:.6rem .8rem; font-weight:700; font-size:.92rem;
+  color:var(--muted); list-style:none; user-select:none}
+.partidos-anteriores>summary::-webkit-details-marker{display:none}
+.partidos-anteriores>summary::before{content:"▸ "; color:var(--blue)}
+.partidos-anteriores[open]>summary::before{content:"▾ "}
+.partidos-anteriores[open]>summary{border-bottom:1px solid var(--line2)}
+.partidos-anteriores>:not(summary){margin-left:.6rem; margin-right:.6rem}
 .partido{display:flex; align-items:center; gap:.55rem; padding:.5rem .2rem; flex-wrap:wrap;
   border-bottom:1px solid var(--line2)}
 .partido .eq{flex:1; text-align:right; font-weight:700}

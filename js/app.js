@@ -414,6 +414,29 @@ function renderApprovalBanner() {
     b.classList.add("hidden");
   }
 }
+// Fecha (YYYY-MM-DD) de un partido en zona horaria de El Salvador, para comparar
+// días sin que la zona del navegador altere el resultado.
+function diaSV(iso) {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/El_Salvador" });
+}
+// Un partido es "anterior" si tiene fecha y su día ya pasó (antes de hoy en SV).
+// Los sin fecha ("Por definir") se consideran futuros y quedan visibles.
+function partidoAnterior(p) {
+  if (!p.fecha) return false;
+  return diaSV(p.fecha) < diaSV(nowMs());
+}
+// Pinta una lista de partidos con sus encabezados de sección dentro de `cont`.
+function pintarMarcadores(cont, lista) {
+  let sec = null;
+  lista.forEach((p) => {
+    const s = seccionDe(p);
+    if (s !== sec) {
+      sec = s;
+      const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = s; cont.appendChild(h);
+    }
+    cont.appendChild(filaMarcador(p));
+  });
+}
 function renderMarcadores() {
   const cont = $("#partidosList"); cont.innerHTML = "";
   if (!S.partidos.length) {
@@ -424,15 +447,31 @@ function renderMarcadores() {
     cont.innerHTML = '<p class="muted">Aún no hay partidos disponibles.</p>';
     return;
   }
-  let sec = null;
-  ms.forEach((p) => {
-    const s = seccionDe(p);
-    if (s !== sec) {
-      sec = s;
-      const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = s; cont.appendChild(h);
-    }
-    cont.appendChild(filaMarcador(p));
-  });
+  // Separamos los partidos ya pasados (días anteriores a hoy) para colapsarlos en
+  // un panel cerrado: por defecto solo se ven los de hoy en adelante.
+  const anteriores = ms.filter(partidoAnterior);
+  const actuales = ms.filter((p) => !partidoAnterior(p));
+  if (anteriores.length) {
+    const det = document.createElement("details");
+    det.className = "partidos-anteriores";
+    const sum = document.createElement("summary");
+    sum.textContent = `📁 Partidos anteriores (${anteriores.length})`;
+    det.appendChild(sum);
+    // Pintamos las filas solo cuando el usuario abre el panel (no de primeras).
+    let pintado = false;
+    det.addEventListener("toggle", () => {
+      if (det.open && !pintado) { pintarMarcadores(det, anteriores); pintado = true; }
+    });
+    cont.appendChild(det);
+  }
+  if (actuales.length) {
+    pintarMarcadores(cont, actuales);
+  } else {
+    const m = document.createElement("p");
+    m.className = "muted";
+    m.textContent = "No hay partidos de hoy en adelante. Abre “Partidos anteriores” para consultarlos.";
+    cont.appendChild(m);
+  }
 }
 // Texto persistente de confirmación de guardado para UN partido (o "" si el
 // usuario aún no ha guardado ningún pronóstico en él).
@@ -810,7 +849,15 @@ async function cargarLeaderboard() {
     if (!S.detalleLB.has(r.nombre)) S.detalleLB.set(r.nombre, []);
     S.detalleLB.get(r.nombre).push(r);
   });
-  body.innerHTML = data.map((r, i) => {
+  // Solo aparecen en la tabla quienes YA participaron en algún partido finalizado
+  // (tienen al menos un pronóstico sobre un partido con resultado real). Los demás
+  // se ocultan hasta que participen.
+  const jugadores = data.filter((r) => (S.detalleLB.get(r.nombre) || []).length > 0);
+  if (!jugadores.length) {
+    body.innerHTML = '<tr><td colspan="5" class="muted">Nadie ha participado en un partido finalizado todavía.</td></tr>';
+    return;
+  }
+  body.innerHTML = jugadores.map((r, i) => {
     const rank = i + 1, medalla = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
     const cls = rank <= 3 ? "rank" + rank : "", me = r.nombre === S.profile?.nombre ? "me" : "";
     const hayDet = (S.detalleLB.get(r.nombre) || []).length > 0;
@@ -870,6 +917,8 @@ function detalleLeaderboard(nombre) {
 //  VISTA: PREMIOS (dinero por marcador exacto)
 // ============================================================
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Cuota de inscripción: monto fijo que paga cada usuario autorizado por el admin.
+const INSCRIPCION_PRECIO = 3;
 async function cargarPremios() {
   const cont = $("#premiosList"), res = $("#premiosResumen");
   const { data, error } = await sb.rpc("get_premios_marcador");
@@ -891,10 +940,17 @@ async function cargarPremios() {
   // 25% de la organización: lo que NO se reparte como premio (bote - 75% base),
   // acumulado sobre TODOS los partidos con resultado.
   const totOrg = data.reduce((a, r) => a + (Number(r.bote) - Number(r.premio_total)), 0);
+  // Inscripciones: $INSCRIPCION_PRECIO por cada usuario autorizado por el admin
+  // (aprobado o admin). Las RLS de profiles permiten leer el conteo a todos.
+  const { count: nInscritos } = await sb.from("profiles")
+    .select("id", { count: "exact", head: true }).eq("aprobado", true);
+  const totInscrip = (nInscritos || 0) * INSCRIPCION_PRECIO;
   res.innerHTML = `
     <div class="premio-stat"><span class="big">${money(totBote)}</span><span class="lbl">recaudado en total</span></div>
     <div class="premio-stat"><span class="big">${money(totRepartido)}</span><span class="lbl">repartido en premios</span></div>
     <div class="premio-stat"><span class="big">${money(totOrg)}</span><span class="lbl">25% organización (acumulado)</span></div>
+    <div class="premio-stat"><span class="big">${money(totInscrip)}</span><span class="lbl">inscripciones (${nInscritos || 0} × ${money(INSCRIPCION_PRECIO)})</span></div>
+    <div class="premio-stat"><span class="big">${money(totInscrip + totOrg)}</span><span class="lbl">inscripciones + 25% acumulado</span></div>
     <div class="premio-stat"><span class="big">${data.length}</span><span class="lbl">partidos con resultado</span></div>`;
 
   // Solo el admin puede marcar/desmarcar pagos; los demás usuarios solo consultan.
@@ -1348,67 +1404,105 @@ async function setTiebreak(numero, side) {
   await propagarLlaves();
   renderAdminPartidos();
 }
-function renderAdminPartidos() {
-  const cont = $("#adminPartidos"); cont.innerHTML = "";
-  const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
-  if (!ms.length) { cont.innerHTML = '<p class="muted">Sin partidos. Usa "Agregar / importar".</p>'; return; }
+// Un partido del admin queda BLOQUEADO cuando ya pasó su día y ya tiene marcador
+// cargado: no se puede volver a editar el resultado (evita cambios accidentales).
+function partidoBloqueadoAdmin(p) {
+  return partidoAnterior(p) && p.gol_local != null && p.gol_visitante != null;
+}
+// Construye la fila de un partido en el panel de admin.
+function filaAdminPartido(p) {
+  const aplica = p.aplica_quiniela !== false;   // por defecto aplica
+  const bloq = partidoBloqueadoAdmin(p);        // ya pasó el día y tiene marcador
+  const activos = (S.activByPartido && S.activByPartido[p.id]) || new Map();
+  const opt = (u) => {
+    const n = activos.get(u.id) || 0;
+    return `<label class="part-chk">
+      <select data-act-p="${p.id}" data-act-u="${u.id}">
+        <option value="0" ${n === 0 ? "selected" : ""}>No participa</option>
+        <option value="1" ${n === 1 ? "selected" : ""}>1 pronóstico</option>
+        <option value="2" ${n === 2 ? "selected" : ""}>2 pronósticos</option>
+      </select> ${esc(u.nombre || u.email || "—")}</label>`;
+  };
+  const usersHtml = (S.adminUsers || []).length
+    ? S.adminUsers.map(opt).join("")
+    : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
+  // Los equipos de llaves se rellenan SOLOS al guardar resultados (no se editan).
+  const esLlave = p.fase !== "grupos";
+  const empate = p.gol_local != null && p.gol_local === p.gol_visitante;
+  const win = S.realWinners[p.numero];
+  // Selector de desempate: solo en llaves empatadas y ya definidas (penales/prórroga).
+  const tbHtml = (esLlave && empate && partidoDefinido(p))
+    ? `<div class="tiebreak">⚖️ Empate — pasó:
+        <button class="btn small ${win === "a" ? "sel" : ""}" data-tb="${p.numero}" data-side="a">${esc(p.equipo_local)}</button>
+        <button class="btn small ${win === "b" ? "sel" : ""}" data-tb="${p.numero}" data-side="b">${esc(p.equipo_visitante)}</button>
+      </div>`
+    : "";
+  const dis = bloq ? "disabled" : "";
+  const lockTag = bloq ? `<span class="tag-cerrado" title="Partido pasado con marcador. Resultado bloqueado.">🔒 bloqueado</span>` : "";
+  const row = document.createElement("div");
+  row.className = "admin-partido" + (aplica ? "" : " no-aplica") + (bloq ? " cerrado" : "");
+  row.innerHTML = `
+    <div class="admin-partido-main">
+      <span class="eq">${teamRow(p.equipo_local)}</span>
+      <input type="number" min="0" max="99" data-rid="${p.id}" data-side="l" value="${p.gol_local ?? ""}" ${dis}>
+      <span class="vs">vs</span>
+      <input type="number" min="0" max="99" data-rid="${p.id}" data-side="v" value="${p.gol_visitante ?? ""}" ${dis}>
+      <span class="eq v">${teamRow(p.equipo_visitante)}</span>
+      ${bloq ? lockTag : `<button class="btn small" data-save="${p.id}">Guardar</button>`}
+      <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos (3/1).">
+        <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
+      </label>
+      <span class="fch">#${p.numero ?? "?"} · ${fmtFecha(p.fecha)}</span>
+    </div>
+    ${tbHtml}
+    <details class="part-box">
+      <summary>👥 Participantes (<span data-count="${p.id}">${activos.size}</span>)</summary>
+      <div class="part-list">${usersHtml}</div>
+    </details>`;
+  return row;
+}
+// Pinta una lista de partidos (con encabezados de sección) y enlaza sus eventos.
+function pintarAdminPartidos(cont, lista) {
   let sec = null;
-  ms.forEach((p) => {
+  lista.forEach((p) => {
     const s = seccionDe(p);
     if (s !== sec) {
       sec = s;
       const h = document.createElement("div"); h.className = "grupo-h"; h.textContent = s; cont.appendChild(h);
     }
-    const aplica = p.aplica_quiniela !== false;   // por defecto aplica
-    const activos = (S.activByPartido && S.activByPartido[p.id]) || new Map();
-    const opt = (u) => {
-      const n = activos.get(u.id) || 0;
-      return `<label class="part-chk">
-        <select data-act-p="${p.id}" data-act-u="${u.id}">
-          <option value="0" ${n === 0 ? "selected" : ""}>No participa</option>
-          <option value="1" ${n === 1 ? "selected" : ""}>1 pronóstico</option>
-          <option value="2" ${n === 2 ? "selected" : ""}>2 pronósticos</option>
-        </select> ${esc(u.nombre || u.email || "—")}</label>`;
-    };
-    const usersHtml = (S.adminUsers || []).length
-      ? S.adminUsers.map(opt).join("")
-      : '<span class="muted small">No hay usuarios aprobados todavía.</span>';
-    // Los equipos de llaves se rellenan SOLOS al guardar resultados (no se editan).
-    const esLlave = p.fase !== "grupos";
-    const empate = p.gol_local != null && p.gol_local === p.gol_visitante;
-    const win = S.realWinners[p.numero];
-    // Selector de desempate: solo en llaves empatadas y ya definidas (penales/prórroga).
-    const tbHtml = (esLlave && empate && partidoDefinido(p))
-      ? `<div class="tiebreak">⚖️ Empate — pasó:
-          <button class="btn small ${win === "a" ? "sel" : ""}" data-tb="${p.numero}" data-side="a">${esc(p.equipo_local)}</button>
-          <button class="btn small ${win === "b" ? "sel" : ""}" data-tb="${p.numero}" data-side="b">${esc(p.equipo_visitante)}</button>
-        </div>`
-      : "";
-    const row = document.createElement("div"); row.className = "admin-partido" + (aplica ? "" : " no-aplica");
-    row.innerHTML = `
-      <div class="admin-partido-main">
-        <span class="eq">${teamRow(p.equipo_local)}</span>
-        <input type="number" min="0" max="99" data-rid="${p.id}" data-side="l" value="${p.gol_local ?? ""}">
-        <span class="vs">vs</span>
-        <input type="number" min="0" max="99" data-rid="${p.id}" data-side="v" value="${p.gol_visitante ?? ""}">
-        <span class="eq v">${teamRow(p.equipo_visitante)}</span>
-        <button class="btn small" data-save="${p.id}">Guardar</button>
-        <label class="chk-aplica" title="Si lo desmarcas, este partido NO otorga los puntos (3/1).">
-          <input type="checkbox" data-aplica="${p.id}" ${aplica ? "checked" : ""}> aplica
-        </label>
-        <span class="fch">#${p.numero ?? "?"} · ${fmtFecha(p.fecha)}</span>
-      </div>
-      ${tbHtml}
-      <details class="part-box">
-        <summary>👥 Participantes (<span data-count="${p.id}">${activos.size}</span>)</summary>
-        <div class="part-list">${usersHtml}</div>
-      </details>`;
-    cont.appendChild(row);
+    cont.appendChild(filaAdminPartido(p));
   });
   cont.querySelectorAll("[data-save]").forEach((b) => (b.onclick = () => guardarResultado(b.dataset.save)));
   cont.querySelectorAll("[data-aplica]").forEach((c) => (c.onchange = () => guardarAplica(c.dataset.aplica, c.checked)));
   cont.querySelectorAll("[data-act-p]").forEach((c) => (c.onchange = () => setParticipante(+c.dataset.actP, c.dataset.actU, +c.value)));
   cont.querySelectorAll("[data-tb]").forEach((b) => (b.onclick = () => setTiebreak(+b.dataset.tb, b.dataset.side)));
+}
+function renderAdminPartidos() {
+  const cont = $("#adminPartidos"); cont.innerHTML = "";
+  const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
+  if (!ms.length) { cont.innerHTML = '<p class="muted">Sin partidos. Usa "Agregar / importar".</p>'; return; }
+  // Igual que en Mi Quiniela: los partidos de días anteriores van colapsados en un
+  // panel cerrado; por defecto solo se ven los de hoy en adelante.
+  const anteriores = ms.filter(partidoAnterior);
+  const actuales = ms.filter((p) => !partidoAnterior(p));
+  if (anteriores.length) {
+    const det = document.createElement("details");
+    det.className = "partidos-anteriores";
+    const sum = document.createElement("summary");
+    sum.textContent = `📁 Partidos anteriores (${anteriores.length})`;
+    det.appendChild(sum);
+    let pintado = false;
+    det.addEventListener("toggle", () => {
+      if (det.open && !pintado) { pintarAdminPartidos(det, anteriores); pintado = true; }
+    });
+    cont.appendChild(det);
+  }
+  if (actuales.length) {
+    pintarAdminPartidos(cont, actuales);
+  } else {
+    cont.insertAdjacentHTML("beforeend",
+      '<p class="muted">No hay partidos de hoy en adelante. Abre “Partidos anteriores” para consultarlos.</p>');
+  }
 }
 async function guardarAplica(id, aplica) {
   const { error } = await sb.from("partidos").update({ aplica_quiniela: aplica }).eq("id", +id);
@@ -1417,6 +1511,8 @@ async function guardarAplica(id, aplica) {
   renderAdminPartidos();
 }
 async function guardarResultado(id) {
+  const p = S.partidos.find((x) => x.id === +id);
+  if (p && partidoBloqueadoAdmin(p)) { alert("Partido bloqueado: ya pasó su día y tiene marcador."); return; }
   const l = document.querySelector(`[data-rid="${id}"][data-side="l"]`).value;
   const v = document.querySelector(`[data-rid="${id}"][data-side="v"]`).value;
   const upd = { gol_local: l === "" ? null : +l, gol_visitante: v === "" ? null : +v };
