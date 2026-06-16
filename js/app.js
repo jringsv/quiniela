@@ -1132,9 +1132,12 @@ async function renderAdminUsuarios() {
   if (!usuarios?.length) { cont.innerHTML = '<p class="muted">Aún no hay usuarios registrados.</p>'; return; }
 
   const pendientes = usuarios.filter((u) => !u.aprobado && !u.is_admin).length;
+  // El aviso de pendientes queda SIEMPRE visible; la lista de usuarios se colapsa
+  // en un panel cerrado (igual que los partidos) y se despliega al abrirlo.
   let html = pendientes
     ? `<p class="pendientes-aviso">🔔 ${pendientes} usuario(s) pendiente(s) de autorización.</p>`
     : `<p class="muted small">Todos los usuarios están autorizados.</p>`;
+  html += `<details class="partidos-anteriores"><summary>👥 Usuarios (${usuarios.length})</summary>`;
 
   usuarios.forEach((u) => {
     const esYo = u.id === S.user.id;
@@ -1180,6 +1183,7 @@ async function renderAdminUsuarios() {
       <span class="u-accion">${accion}</span>
     </div>`;
   });
+  html += `</details>`;
   cont.innerHTML = html;
 
   cont.querySelectorAll("[data-aprobar]").forEach((b) =>
