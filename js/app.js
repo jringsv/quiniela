@@ -950,8 +950,7 @@ async function cargarPremios() {
     <div class="premio-stat"><span class="big">${money(totRepartido)}</span><span class="lbl">repartido en premios</span></div>
     <div class="premio-stat"><span class="big">${money(totOrg)}</span><span class="lbl">25% organización (acumulado)</span></div>
     <div class="premio-stat"><span class="big">${money(totInscrip)}</span><span class="lbl">inscripciones (${nInscritos || 0} × ${money(INSCRIPCION_PRECIO)})</span></div>
-    <div class="premio-stat"><span class="big">${money(totInscrip + totOrg)}</span><span class="lbl">inscripciones + 25% acumulado</span></div>
-    <div class="premio-stat"><span class="big">${data.length}</span><span class="lbl">partidos con resultado</span></div>`;
+    <div class="premio-stat"><span class="big">${money(totInscrip + totOrg)}</span><span class="lbl">inscripciones + 25% acumulado</span></div>`;
 
   // Solo el admin puede marcar/desmarcar pagos; los demás usuarios solo consultan.
   const esAdmin = !!S.profile?.is_admin;
