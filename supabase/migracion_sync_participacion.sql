@@ -3,12 +3,14 @@
 --  MANTIENE partido_usuario CONSISTENTE CON pred_partidos
 --
 --  Problema:
---    La RLS de pred_partidos exime al ADMIN del requisito de estar activado
---    (is_admin(auth.uid()) corta la condición). Por eso un admin podía guardar
---    pronósticos en un partido SIN figurar en partido_usuario. Resultado:
---      - El panel de Participantes (select 1/2) lo mostraba como "No participa".
---      - No se le contaba como participante ni en el panel ni en los premios,
---        aunque SÍ había puesto sus pronósticos (cada slot = $1).
+--    La participación vive en DOS lugares: los pronósticos (pred_partidos) y la
+--    fila de activación (partido_usuario, con n_pred). El panel de Participantes
+--    (select 1/2), su conteo y los premios se basan SOLO en partido_usuario. Si
+--    esa fila queda desincronizada de los pronósticos guardados (p. ej. la RLS
+--    exime al admin de estar activado; o una fila se borró tras pronosticar),
+--    el usuario aparece como "No participa" y no se cuenta como participante,
+--    aunque SÍ tenga sus pronósticos (cada slot = $1). Esto se observó en TODOS
+--    los usuarios que pusieron 2 pronósticos cuya fila quedó descuadrada.
 --
 --  Regla nueva (fuente de verdad única):
 --    Cualquier persona —incluido el admin— que tenga al menos un pronóstico en

@@ -992,11 +992,8 @@ async function cargarPremios() {
       ? `<span title="Premio acumulado de partidos previos sin ganador">🔁 Acumulado previo: <strong>${money(acumulado)}</strong></span>
          <span>🎯 Total ${hayGan ? "a repartir" : "acumulado"}: <strong>${money(aRepartir)}</strong></span>`
       : "";
-    // Badge de cabecera: "PAGADO" cuando todos los ganadores están marcados;
-    // "ACUMULADO" cuando nadie acertó y el premio pasa al siguiente partido.
-    const badge = r.todos_pagados
-      ? `<span class="premio-pagado-badge">✅ PAGADO</span>`
-      : (!hayGan ? `<span class="premio-acum-badge">🔁 ACUMULADO</span>` : "");
+    // Badge "PAGADO" cuando todos los ganadores del partido están marcados.
+    const badge = r.todos_pagados ? `<span class="premio-pagado-badge">✅ PAGADO</span>` : "";
     // Botón de conveniencia (solo admin) para marcar/desmarcar todo el partido.
     const accionTodo = (esAdmin && hayGan)
       ? `<div class="premio-acciones">
@@ -1026,19 +1023,18 @@ async function cargarPremios() {
         </div>
         ${ganHtml}
         ${accionTodo}`;
-    // Se colapsan (solo se ve la cabecera, expandible con un clic) los partidos
-    // ya resueltos: los totalmente pagados y los que acumularon (sin ganador).
-    // Quedan siempre abiertos los que tienen ganadores con pagos pendientes.
-    const colapsar = r.todos_pagados || !hayGan;
-    if (colapsar) {
+    // Solo los partidos totalmente pagados se colapsan (solo se ve la cabecera;
+    // se pueden expandir con un clic). Los demás —incluidos los acumulados sin
+    // ganador— se muestran siempre completos para ver sus valores.
+    if (r.todos_pagados) {
       return `
-      <details class="premio-card ${hayGan ? "pagado" : "sin"}">
+      <details class="premio-card pagado">
         <summary class="premio-summary">${headHtml}</summary>
         ${bodyHtml}
       </details>`;
     }
     return `
-      <div class="premio-card">
+      <div class="premio-card ${hayGan ? "" : "sin"}">
         ${headHtml}
         ${bodyHtml}
       </div>`;
