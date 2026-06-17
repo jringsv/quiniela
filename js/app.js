@@ -367,9 +367,13 @@ function bloquePronosticosCerrados(p) {
         <span class="pcm-mar">${r.pred_local}-${r.pred_visitante}${r.acerto ? " ✅" : ""}</span>
       </li>`;
   }).join("");
-  // Total de PARTICIPANTES distintos (no de pronósticos: alguien con 2 cuenta 1).
+  // Total de PARTICIPANTES distintos (alguien con 2 cuenta 1) y total de
+  // PRONÓSTICOS (cada slot cuenta; suele ser mayor porque varios ponen 2).
   const nParticipantes = new Set(preds.map((r) => r.nombre)).size;
-  const cntPart = `<span class="pcm-count">👥 ${nParticipantes} participante${nParticipantes === 1 ? "" : "s"}</span>`;
+  const nPron = preds.length;
+  const cntPart =
+    `<span class="pcm-count">👥 ${nParticipantes} participante${nParticipantes === 1 ? "" : "s"}</span>` +
+    `<span class="pcm-count">🎟️ ${nPron} pronóstico${nPron === 1 ? "" : "s"}</span>`;
   // Si aún no cierra y solo lo ve el admin, lo indicamos para evitar confusiones.
   const title = (cerrado ? "🔒 Pronósticos de todos" : "👁️ Pronósticos de todos (vista admin · aún abierto)") + " " + cntPart;
   // Pie de auditoría: la edición más reciente de este partido y quién la registró.
