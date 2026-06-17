@@ -228,6 +228,17 @@
 .premio-card.pagado{border-color:rgba(0,104,71,.5); box-shadow:0 0 0 1px rgba(0,104,71,.25), var(--shadow)}
 .premio-acciones{display:flex; justify-content:flex-end; border-top:1px dashed var(--line2); padding-top:.45rem}
 
+/* Tarjeta de premio pagada = colapsable (<details>). Se ve solo la cabecera;
+   un clic la expande. Atenuada y con caret indicador mientras está cerrada. */
+details.premio-card{padding-top:.7rem}
+details.premio-card:not([open]){gap:0; background:var(--panel2)}
+.premio-card > summary.premio-summary{list-style:none; cursor:pointer; outline:none;
+  display:flex; flex-direction:column; gap:.5rem}
+.premio-card > summary.premio-summary::-webkit-details-marker{display:none}
+.premio-card > summary.premio-summary .premio-head-r::after{content:"▾"; color:var(--muted);
+  font-size:.85rem; transition:transform .15s ease}
+details.premio-card[open] > summary.premio-summary .premio-head-r::after{transform:rotate(180deg)}
+
 /* ============================================================
    PRONÓSTICOS DE TODOS — bloque compacto DEBAJO de cada partido
    cerrado, en letra pequeña.

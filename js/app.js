@@ -1002,8 +1002,8 @@ async function cargarPremios() {
            </button>
          </div>`
       : "";
-    return `
-      <div class="premio-card ${hayGan ? "" : "sin"} ${r.todos_pagados ? "pagado" : ""}">
+    // Cabecera (sección + marcador) y cuerpo (info + ganadores + acciones).
+    const headHtml = `
         <div class="premio-head">
           <span class="premio-sec">#${r.numero ?? "?"} · ${esc(seccion)}</span>
           <span class="premio-head-r">${badge}<span class="premio-fecha">${fmtFecha(r.fecha)}</span></span>
@@ -1012,7 +1012,8 @@ async function cargarPremios() {
           <span class="eq">${teamRow(r.equipo_local)}</span>
           <span class="premio-score">${r.gol_local} - ${r.gol_visitante}</span>
           <span class="eq v">${teamRow(r.equipo_visitante)}</span>
-        </div>
+        </div>`;
+    const bodyHtml = `
         <div class="premio-info">
           <span title="${r.n_pronosticos} pronóstico(s) × $1 — total recaudado del partido">🎟️ Recaudado: <strong>${money(r.bote)}</strong></span>
           <span>💰 Premio (75%): <strong>${money(r.premio_total)}</strong></span>
@@ -1021,7 +1022,20 @@ async function cargarPremios() {
           <span>🏆 Ganadores: <strong>${r.n_ganadores}</strong></span>
         </div>
         ${ganHtml}
-        ${accionTodo}
+        ${accionTodo}`;
+    // Los partidos totalmente pagados se colapsan (solo se ve la cabecera);
+    // se pueden expandir con un clic. El resto se muestra siempre completo.
+    if (r.todos_pagados) {
+      return `
+      <details class="premio-card pagado">
+        <summary class="premio-summary">${headHtml}</summary>
+        ${bodyHtml}
+      </details>`;
+    }
+    return `
+      <div class="premio-card ${hayGan ? "" : "sin"}">
+        ${headHtml}
+        ${bodyHtml}
       </div>`;
   }).join("");
 
