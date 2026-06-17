@@ -225,6 +225,8 @@
 .premio-head-r{display:inline-flex; align-items:center; gap:.45rem}
 .premio-pagado-badge{font-weight:800; font-size:.66rem; letter-spacing:.04em; color:#fff;
   background:var(--green); border-radius:999px; padding:.12rem .5rem; white-space:nowrap}
+.premio-acum-badge{font-weight:800; font-size:.66rem; letter-spacing:.04em; color:var(--ink);
+  background:var(--bg2); border:1px solid var(--line2); border-radius:999px; padding:.12rem .5rem; white-space:nowrap}
 .premio-card.pagado{border-color:rgba(0,104,71,.5); box-shadow:0 0 0 1px rgba(0,104,71,.25), var(--shadow)}
 .premio-acciones{display:flex; justify-content:flex-end; border-top:1px dashed var(--line2); padding-top:.45rem}
 
