@@ -884,23 +884,43 @@ async function cargarLeaderboard() {
 // Tabla de detalle (igual que la de posiciones): un renglón por pronóstico de un
 // partido ya FINALIZADO, con resultado real, marcador del jugador y puntos
 // (misma regla que get_leaderboard: 3 exacto · 1 acertar resultado · 0 fallar;
-// un partido marcado "no aplica" no suma). El total puede ser menor al de la
-// tabla si hay partidos cerrados sin resultado todavía.
+// un partido marcado "no aplica" no suma). Con DOS pronósticos en un mismo
+// partido solo cuenta el MEJOR de los dos (el otro se marca "descartado" y no
+// suma). El total puede ser menor al de la tabla si hay partidos cerrados sin
+// resultado todavía.
 function detalleLeaderboard(nombre) {
   const rows = (S.detalleLB.get(nombre) || []).slice()
     .sort((a, b) => (a.numero || 0) - (b.numero || 0) || (a.slot || 1) - (b.slot || 1));
   if (!rows.length) return '<p class="muted small">Sin partidos finalizados todavía.</p>';
   const signo = (x) => (x > 0 ? 1 : x < 0 ? -1 : 0);
+  // Puntos crudos de un pronóstico (sin aplicar aún la regla del mejor de dos).
+  const ptsDe = (r) => {
+    const aplica = S.partidos.find((p) => p.id === r.partido_id)?.aplica_quiniela !== false;
+    if (!aplica) return 0;
+    if (r.pred_local === r.gol_local_real && r.pred_visitante === r.gol_visitante_real) return 3;
+    if (signo(r.pred_local - r.pred_visitante) === signo(r.gol_local_real - r.gol_visitante_real)) return 1;
+    return 0;
+  };
+  // Por partido, el slot que CUENTA es el del mejor pronóstico (empate -> slot 1,
+  // porque rows viene ordenado por slot ascendente).
+  const cuentaSlot = new Map();   // numero -> slot ganador
+  rows.forEach((r) => {
+    const prev = cuentaSlot.get(r.numero);
+    if (!prev || ptsDe(r) > ptsDe(prev)) cuentaSlot.set(r.numero, r);
+  });
   let total = 0;
   const trs = rows.map((r) => {
     const aplica = S.partidos.find((p) => p.id === r.partido_id)?.aplica_quiniela !== false;
-    let pts = 0, motivo = "";
-    if (!aplica) { pts = 0; motivo = "no suma"; }
-    else if (r.pred_local === r.gol_local_real && r.pred_visitante === r.gol_visitante_real) { pts = 3; motivo = "exacto"; }
-    else if (signo(r.pred_local - r.pred_visitante) === signo(r.gol_local_real - r.gol_visitante_real)) { pts = 1; motivo = "resultado"; }
-    total += pts;
     const dup = rows.filter((x) => x.numero === r.numero).length > 1;   // tiene 2 pronósticos
-    const cls = pts === 3 ? "ok3" : pts === 1 ? "ok1" : "zero";
+    const cuenta = !dup || cuentaSlot.get(r.numero).slot === r.slot;
+    const raw = ptsDe(r);
+    let pts = cuenta ? raw : 0, motivo = "";
+    if (!aplica) motivo = "no suma";
+    else if (!cuenta) motivo = "descartado";
+    else if (raw === 3) motivo = "exacto";
+    else if (raw === 1) motivo = "resultado";
+    total += pts;
+    const cls = !cuenta ? "zero" : pts === 3 ? "ok3" : pts === 1 ? "ok1" : "zero";
     return `<tr class="${cls}">
         <td>${r.numero}${dup ? ` · P${r.slot}` : ""}</td>
         <td class="lbd-part">${esc(r.equipo_local)} <span class="vs">vs</span> ${esc(r.equipo_visitante)}</td>
