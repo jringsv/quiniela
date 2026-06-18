@@ -1047,18 +1047,18 @@ async function cargarPremios() {
         </div>
         ${ganHtml}
         ${accionTodo}`;
-    // Solo los partidos totalmente pagados se colapsan (solo se ve la cabecera;
-    // se pueden expandir con un clic). Los demás —incluidos los acumulados sin
-    // ganador— se muestran siempre completos para ver sus valores.
-    if (r.todos_pagados) {
+    // Se colapsan (solo se ve la cabecera, se expanden con un clic) tanto los
+    // partidos totalmente pagados como los acumulados sin ganador. Los que aún
+    // tienen ganadores por pagar se muestran siempre completos.
+    if (r.todos_pagados || !hayGan) {
       return `
-      <details class="premio-card pagado">
+      <details class="premio-card ${r.todos_pagados ? "pagado" : "sin"}">
         <summary class="premio-summary">${headHtml}</summary>
         ${bodyHtml}
       </details>`;
     }
     return `
-      <div class="premio-card ${hayGan ? "" : "sin"}">
+      <div class="premio-card">
         ${headHtml}
         ${bodyHtml}
       </div>`;
