@@ -65,6 +65,7 @@ Solo el admin queda exceptuado y puede cargar resultados.
    10. [`supabase/migracion_npred_por_activacion.sql`](supabase/migracion_npred_por_activacion.sql) — activar con 1 ó 2 pronósticos por usuario/partido.
    11. [`supabase/migracion_reset_password.sql`](supabase/migracion_reset_password.sql) — el admin resetea contraseñas y obliga al cambio al ingresar.
    12. [`supabase/migracion_control_pagos.sql`](supabase/migracion_control_pagos.sql) — control de pagos por usuario (pronósticos enviados vs. dinero pagado).
+   13. [`supabase/migracion_sync_participacion.sql`](supabase/migracion_sync_participacion.sql) — mantiene `partido_usuario` en sync con los pronósticos (evita que un usuario con pronóstico aparezca como "No participa"). Backfill + trigger; idempotente.
 
    > Nota: si en algún momento corriste `migracion_pred_inmutable.sql` (descartada), ejecuta
    > [`supabase/migracion_pred_editable.sql`](supabase/migracion_pred_editable.sql) para volver a
