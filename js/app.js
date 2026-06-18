@@ -1016,8 +1016,12 @@ async function cargarPremios() {
       ? `<span title="Premio acumulado de partidos previos sin ganador">🔁 Acumulado previo: <strong>${money(acumulado)}</strong></span>
          <span>🎯 Total ${hayGan ? "a repartir" : "acumulado"}: <strong>${money(aRepartir)}</strong></span>`
       : "";
-    // Badge "PAGADO" cuando todos los ganadores del partido están marcados.
-    const badge = r.todos_pagados ? `<span class="premio-pagado-badge">✅ PAGADO</span>` : "";
+    // Badge de estado en la cabecera: "PAGADO" cuando todos los ganadores están
+    // marcados, o "ACUMULADO" cuando el partido no tuvo ganador (se ve aun
+    // estando la tarjeta colapsada).
+    const badge = r.todos_pagados
+      ? `<span class="premio-pagado-badge">✅ PAGADO</span>`
+      : (!hayGan ? `<span class="premio-acum-badge">🔁 ACUMULADO</span>` : "");
     // Botón de conveniencia (solo admin) para marcar/desmarcar todo el partido.
     const accionTodo = (esAdmin && hayGan)
       ? `<div class="premio-acciones">
