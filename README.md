@@ -20,8 +20,9 @@ El puntaje se calcula con los **marcadores de los partidos** (grupos **y** llave
 | Pronóstico al partido (acertar gane o empate) | **1** |
 
 > 🎯 **Uno o dos pronósticos por partido:** el admin define, al activar a cada usuario en un
-> partido, si dará **1 o 2** marcadores. Con dos, deben ser **diferentes** y **ambos suman**
-> (máximo 3 + 1 = 4: un exacto + un resultado).
+> partido, si dará **1 o 2** marcadores. Con dos, deben ser **diferentes** y **solo cuenta el
+> mejor de los dos** (el que dé más puntos: máximo **3**, no se suman). El segundo pronóstico es
+> una segunda oportunidad de acertar, no puntos extra.
 
 > 💾 **Guardado por partido:** cada partido se guarda (y se edita) por separado, así puedes
 > llenar poco a poco. Se puede **modificar hasta 15 minutos antes** de que empiece el partido;
@@ -116,7 +117,7 @@ A–L, 48 equipos) con equipos, grupo y fecha reales.
 > `numero | fase | grupo | local | visitante | fecha`).
 
 #### ¿Y las eliminatorias (16avos, 8vos, etc.)?
-Las llaves se pronostican **como partidos normales** (marcador 3/1, dos pronósticos, ambos suman).
+Las llaves se pronostican **como partidos normales** (marcador 3/1, dos pronósticos, solo cuenta el mejor).
 Los 32 partidos (73–104) se crean con [`supabase/seed_llaves.sql`](supabase/seed_llaves.sql) con sus
 fechas/sedes reales y equipos en **"Por definir"**.
 
