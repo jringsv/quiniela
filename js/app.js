@@ -905,17 +905,20 @@ function detalleLeaderboard(nombre) {
   if (!rows.length) return '<p class="muted small">Sin partidos finalizados todavía.</p>';
   const signo = (x) => (x > 0 ? 1 : x < 0 ? -1 : 0);
   // Puntos crudos de un pronóstico (sin aplicar aún la regla del mejor de dos).
+  // Un pronóstico anulado por el admin (descartado) nunca suma.
   const ptsDe = (r) => {
+    if (r.descartado) return 0;
     const aplica = S.partidos.find((p) => p.id === r.partido_id)?.aplica_quiniela !== false;
     if (!aplica) return 0;
     if (r.pred_local === r.gol_local_real && r.pred_visitante === r.gol_visitante_real) return 3;
     if (signo(r.pred_local - r.pred_visitante) === signo(r.gol_local_real - r.gol_visitante_real)) return 1;
     return 0;
   };
-  // Por partido, el slot que CUENTA es el del mejor pronóstico (empate -> slot 1,
-  // porque rows viene ordenado por slot ascendente).
+  // Por partido, el slot que CUENTA es el del mejor pronóstico NO descartado
+  // (empate -> slot 1, porque rows viene ordenado por slot ascendente).
   const cuentaSlot = new Map();   // numero -> slot ganador
   rows.forEach((r) => {
+    if (r.descartado) return;     // un pronóstico anulado nunca puede ser el que cuenta
     const prev = cuentaSlot.get(r.numero);
     if (!prev || ptsDe(r) > ptsDe(prev)) cuentaSlot.set(r.numero, r);
   });
@@ -923,10 +926,12 @@ function detalleLeaderboard(nombre) {
   const trs = rows.map((r) => {
     const aplica = S.partidos.find((p) => p.id === r.partido_id)?.aplica_quiniela !== false;
     const dup = rows.filter((x) => x.numero === r.numero).length > 1;   // tiene 2 pronósticos
-    const cuenta = !dup || cuentaSlot.get(r.numero).slot === r.slot;
+    const ganador = cuentaSlot.get(r.numero);
+    const cuenta = !r.descartado && (!dup || (ganador && ganador.slot === r.slot));
     const raw = ptsDe(r);
     let pts = cuenta ? raw : 0, motivo = "";
-    if (!aplica) motivo = "no suma";
+    if (r.descartado) motivo = "descartado";
+    else if (!aplica) motivo = "no suma";
     else if (!cuenta) motivo = "descartado";
     else if (raw === 3) motivo = "exacto";
     else if (raw === 1) motivo = "resultado";
