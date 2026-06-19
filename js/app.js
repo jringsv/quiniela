@@ -557,6 +557,16 @@ async function guardarPartido(p, btn, msgEl) {
   if (filled[1] && filled[2] && filled[1].gl === filled[2].gl && filled[1].gv === filled[2].gv) {
     msg(msgEl, "Los dos pronósticos deben ser diferentes.", false); return;
   }
+  // Los dos pronósticos pueden variar en el marcador, pero deben mantener el mismo
+  // resultado (mismo equipo ganador, o ambos empate). El doble pronóstico es una
+  // segunda oportunidad de acertar el marcador exacto, no para cubrir ambos ganadores.
+  if (filled[1] && filled[2]) {
+    const r1 = Math.sign(filled[1].gl - filled[1].gv);
+    const r2 = Math.sign(filled[2].gl - filled[2].gv);
+    if (r1 !== r2) {
+      msg(msgEl, "Ambos pronósticos deben tener el mismo ganador (o ambos empate). Pueden variar el marcador, pero no cubrir resultados opuestos.", false); return;
+    }
+  }
   btn.disabled = true;
   try {
     // Reescribe este partido: borra lo previo (incluye slots vaciados) e inserta.
