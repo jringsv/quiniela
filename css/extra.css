@@ -349,18 +349,33 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 .pc-disp.neg .pc-disp-val{color:#c0392b}
 .pc-disp.pos .pc-disp-val{color:var(--green)}
 
-.pago-card-stats{display:flex; gap:.4rem}
-.pc-stat{flex:1 1 0; background:var(--bg2); border:1px solid var(--line);
+.pago-card-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(58px,1fr)); gap:.4rem}
+.pc-stat{background:var(--bg2); border:1px solid var(--line);
   border-radius:10px; padding:.4rem .3rem; display:flex; flex-direction:column;
-  align-items:center; gap:.1rem; text-align:center}
-.pc-val{font-weight:800; font-variant-numeric:tabular-nums; font-size:.95rem}
-.pc-lbl{font-size:.64rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em}
+  align-items:center; gap:.1rem; text-align:center; min-width:0}
+.pc-val{font-weight:800; font-variant-numeric:tabular-nums; font-size:.9rem;
+  max-width:100%; overflow-wrap:anywhere}
+.pc-lbl{font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:.02em}
 
 .pago-card-form{display:flex; gap:.35rem; flex-wrap:wrap; align-items:center;
   border-top:1px dashed var(--line); padding-top:.55rem}
 .pago-card-form .pago-monto{flex:1 1 5.5rem; min-width:5rem; padding:.45rem .55rem;
   border:1px solid var(--line); border-radius:8px; font:inherit; text-align:right}
 .pago-card-form .btn{flex:0 0 auto}
+
+/* Historial desplegable dentro de la tarjeta */
+.pago-hist{border-top:1px dashed var(--line); padding-top:.55rem}
+.pago-hist-total{font-size:.8rem; color:var(--muted); margin-bottom:.4rem}
+.pago-hist-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.3rem;
+  max-height:13rem; overflow-y:auto}
+.pago-hist-list li{display:flex; align-items:center; gap:.45rem; flex-wrap:wrap;
+  background:var(--bg2); border:1px solid var(--line); border-radius:8px; padding:.35rem .5rem}
+.ph-monto{font-weight:800; font-variant-numeric:tabular-nums; min-width:4.5rem}
+.ph-monto.neg{color:#c0392b}
+.ph-fecha{font-size:.72rem; color:var(--muted)}
+.ph-nota{font-size:.74rem; flex:1 1 100%; color:var(--ink)}
+.pago-hist-list .ph-del{margin-left:auto; flex:0 0 auto; padding:.15rem .45rem;
+  font-size:.85rem; line-height:1; color:#c0392b}
 
 @media(max-width:420px){
   .pagos-admin{grid-template-columns:1fr}

@@ -1341,8 +1341,10 @@ async function renderControlPagos() {
            <input type="number" step="0.01" class="pago-monto" data-uid="${r.user_id}"
                   placeholder="Monto $" aria-label="Monto a registrar para ${esc(r.nombre)}" />
            <button class="btn small" data-pago="${r.user_id}" data-nombre="${esc(r.nombre)}">Abonar</button>
-           <button class="btn small ghost" data-histpago="${r.user_id}" data-nombre="${esc(r.nombre)}">Historial</button>
-         </div>`
+           <button class="btn small ghost" data-histpago="${r.user_id}" data-nombre="${esc(r.nombre)}"
+                   aria-expanded="false">Historial</button>
+         </div>
+         <div class="pago-hist" data-histbox="${r.user_id}" hidden></div>`
       : "";
     return `
       <div class="pago-card ${yo ? "me" : ""} ${disp < 0 ? "debe" : ""}">
@@ -1368,7 +1370,7 @@ async function renderControlPagos() {
     cont.querySelectorAll("[data-pago]").forEach((b) =>
       (b.onclick = () => registrarPago(b.dataset.pago, b.dataset.nombre)));
     cont.querySelectorAll("[data-histpago]").forEach((b) =>
-      (b.onclick = () => verHistorialPagos(b.dataset.histpago, b.dataset.nombre)));
+      (b.onclick = () => toggleHistorialPagos(b)));
   }
 }
 // Registra un abono (positivo) o ajuste (negativo) para un usuario.
@@ -1384,25 +1386,41 @@ async function registrarPago(uid, nombre) {
   if (error) { alert("Error al registrar el pago: " + error.message); return; }
   await renderControlPagos();
 }
-// Muestra el historial de abonos de un usuario y permite borrar uno.
-async function verHistorialPagos(uid, nombre) {
+// Abre/cierra el historial de abonos de un usuario como panel desplegable
+// dentro de su tarjeta. Carga los pagos al abrir; cada uno se puede borrar.
+async function toggleHistorialPagos(btn) {
+  const uid = btn.dataset.histpago, nombre = btn.dataset.nombre;
+  const box = document.querySelector(`.pago-hist[data-histbox="${uid}"]`);
+  if (!box) return;
+  // Si ya está abierto, lo cerramos.
+  if (!box.hidden) { box.hidden = true; btn.setAttribute("aria-expanded", "false"); return; }
+  box.hidden = false; btn.setAttribute("aria-expanded", "true");
+  box.innerHTML = '<p class="muted small">Cargando…</p>';
   const { data, error } = await sb.from("pagos")
     .select("*").eq("user_id", uid).order("created_at", { ascending: false });
-  if (error) { alert("Error: " + error.message); return; }
-  if (!data?.length) { alert(`"${nombre || "este usuario"}" no tiene pagos registrados.`); return; }
+  if (error) { box.innerHTML = `<p class="muted small">Error: ${esc(error.message)}</p>`; return; }
+  if (!data?.length) { box.innerHTML = '<p class="muted small">Sin pagos registrados.</p>'; return; }
   const total = data.reduce((a, p) => a + Number(p.monto), 0);
-  const lineas = data.map((p) =>
-    `• ${money(p.monto)}  —  ${fmtFecha(p.created_at)}${p.nota ? "  (" + p.nota + ")" : ""}`).join("\n");
-  const cual = prompt(
-    `Pagos de "${nombre || "este usuario"}" (total ${money(total)}):\n\n${lineas}\n\n` +
-    `Para BORRAR un pago, escribe su monto exacto (ej. ${data[0].monto}). Deja vacío para cerrar:`, "");
-  if (!cual) return;
-  const objetivo = Number(cual);
-  const pago = data.find((p) => Number(p.monto) === objetivo);
-  if (!pago) { alert("No se encontró un pago con ese monto."); return; }
-  if (!confirm(`¿Borrar el pago de ${money(pago.monto)}?`)) return;
-  const { error: delErr } = await sb.from("pagos").delete().eq("id", pago.id);
-  if (delErr) { alert("Error al borrar: " + delErr.message); return; }
+  box.innerHTML = `
+    <div class="pago-hist-total">Total abonado: <strong>${money(total)}</strong></div>
+    <ul class="pago-hist-list">
+      ${data.map((p) => `
+        <li>
+          <span class="ph-monto ${Number(p.monto) < 0 ? "neg" : ""}">${money(p.monto)}</span>
+          <span class="ph-fecha">${fmtFecha(p.created_at)}</span>
+          <button class="btn small ghost ph-del" data-delpago="${p.id}"
+                  data-monto="${p.monto}" title="Borrar este pago" aria-label="Borrar pago de ${money(p.monto)}">✕</button>
+          ${p.nota ? `<span class="ph-nota">${esc(p.nota)}</span>` : ""}
+        </li>`).join("")}
+    </ul>`;
+  box.querySelectorAll("[data-delpago]").forEach((db) =>
+    (db.onclick = () => borrarPago(db.dataset.delpago, db.dataset.monto)));
+}
+// Borra un abono concreto (por id) y refresca el control de pagos.
+async function borrarPago(id, monto) {
+  if (!confirm(`¿Borrar el pago de ${money(monto)}?`)) return;
+  const { error } = await sb.from("pagos").delete().eq("id", id);
+  if (error) { alert("Error al borrar: " + error.message); return; }
   await renderControlPagos();
 }
 // Genera una contraseña temporal legible (sin caracteres ambiguos como O/0, l/1).
