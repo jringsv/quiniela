@@ -349,12 +349,14 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 .pc-disp.neg .pc-disp-val{color:#c0392b}
 .pc-disp.pos .pc-disp-val{color:var(--green)}
 
-.pago-card-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(58px,1fr)); gap:.4rem}
+.pago-card-stats{display:grid; grid-template-columns:repeat(2,1fr); gap:.4rem}
+/* Si el número de estadísticas es impar, la última ocupa toda la fila
+   en vez de quedar sola a un lado. */
+.pc-stat:last-child:nth-child(odd){grid-column:1 / -1}
 .pc-stat{background:var(--bg2); border:1px solid var(--line);
-  border-radius:10px; padding:.4rem .3rem; display:flex; flex-direction:column;
+  border-radius:10px; padding:.45rem .4rem; display:flex; flex-direction:column;
   align-items:center; gap:.1rem; text-align:center; min-width:0}
-.pc-val{font-weight:800; font-variant-numeric:tabular-nums; font-size:.9rem;
-  max-width:100%; overflow-wrap:anywhere}
+.pc-val{font-weight:800; font-variant-numeric:tabular-nums; font-size:.95rem; white-space:nowrap}
 .pc-lbl{font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:.02em}
 
 .pago-card-form{display:flex; gap:.35rem; flex-wrap:wrap; align-items:center;
