@@ -1320,10 +1320,14 @@ async function renderControlPagos() {
       const totEnviados = data.reduce((a, r) => a + Number(r.pronosticos_enviados), 0);
       const totPagado   = data.reduce((a, r) => a + Number(r.dinero_pagado), 0);
       const totDisp     = totPagado - totEnviados;
+      const totGanado   = data.reduce((a, r) => a + Number(r.premios_ganados || 0), 0);
+      const totPrePag   = data.reduce((a, r) => a + Number(r.premios_pagados || 0), 0);
       res.innerHTML = `
         <div class="premio-stat"><span class="big">${totEnviados}</span><span class="lbl">pronósticos enviados ($${totEnviados})</span></div>
         <div class="premio-stat"><span class="big">${money(totPagado)}</span><span class="lbl">pagado en total</span></div>
-        <div class="premio-stat"><span class="big ${totDisp < 0 ? "neg" : ""}">${money(totDisp)}</span><span class="lbl">disponible global</span></div>`;
+        <div class="premio-stat"><span class="big ${totDisp < 0 ? "neg" : ""}">${money(totDisp)}</span><span class="lbl">disponible global</span></div>
+        <div class="premio-stat"><span class="big">${money(totGanado)}</span><span class="lbl">ganado en premios</span></div>
+        <div class="premio-stat"><span class="big">${money(totPrePag)}</span><span class="lbl">pagado en premios</span></div>`;
     } else {
       res.innerHTML = "";
     }
@@ -1353,6 +1357,8 @@ async function renderControlPagos() {
           <div class="pc-stat"><span class="pc-val">${env}</span><span class="pc-lbl">enviados</span></div>
           <div class="pc-stat"><span class="pc-val">${money(env)}</span><span class="pc-lbl">a pagar</span></div>
           <div class="pc-stat"><span class="pc-val">${money(r.dinero_pagado)}</span><span class="pc-lbl">pagado</span></div>
+          <div class="pc-stat"><span class="pc-val">${money(r.premios_ganados)}</span><span class="pc-lbl">ganado</span></div>
+          <div class="pc-stat"><span class="pc-val">${money(r.premios_pagados)}</span><span class="pc-lbl">prem. pagado</span></div>
         </div>
         ${accion}
       </div>`;
