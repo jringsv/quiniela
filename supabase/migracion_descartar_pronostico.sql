@@ -98,10 +98,12 @@ $$;
 
 grant execute on function get_leaderboard() to anon, authenticated;
 
--- 4) Detalle por jugador (tabla "Ver detalle" del dashboard): expone la columna
---    descartado para que el frontend muestre el pronóstico anulado en 0 y no lo
---    elija como "mejor de dos". Misma firma que migracion_pronosticos_visibles.sql
---    + la columna nueva al final.
+-- 4) Detalle por jugador (tabla "Ver detalle" del dashboard) + pronósticos de todos.
+--    Reescribe la versión VIGENTE (migracion_admin_ve_pronosticos.sql) conservando
+--    TODO lo suyo: el admin ve partidos abiertos (or is_admin) y la columna
+--    actualizado_en (pie "última actualización"). Solo se AÑADE la columna
+--    descartado al final para que el frontend muestre el pronóstico anulado en 0
+--    y no lo elija como "mejor de dos".
 -- Se hace DROP antes del CREATE porque cambia el tipo de retorno (agrega una
 -- columna) y Postgres no permite eso con create or replace.
 drop function if exists get_pronosticos_bloqueados();
@@ -121,7 +123,8 @@ returns table (
   pred_local         int,
   pred_visitante     int,
   acerto             boolean,
-  descartado         boolean     -- pronóstico anulado por la regla de doble pronóstico
+  actualizado_en     timestamptz, -- cuándo se guardó/editó por última vez este pronóstico
+  descartado         boolean      -- pronóstico anulado por la regla de doble pronóstico
 )
 language sql stable security definer set search_path = public as $$
   select
@@ -130,11 +133,13 @@ language sql stable security definer set search_path = public as $$
     pr.nombre, pp.slot, pp.gol_local, pp.gol_visitante,
     (p.gol_local is not null and p.gol_visitante is not null
       and pp.gol_local = p.gol_local and pp.gol_visitante = p.gol_visitante) as acerto,
+    pp.updated_at,
     pp.descartado
   from partidos p
   join pred_partidos pp on pp.partido_id = p.id
   join profiles pr on pr.id = pp.user_id and (pr.aprobado or pr.is_admin)
-  where partido_locked(p.id)
+  where partido_locked(p.id)      -- partidos ya cerrados (regla para todos)
+     or is_admin(auth.uid())      -- ...pero el admin los ve siempre, aunque sigan abiertos
   order by p.numero, pr.nombre, pp.slot;
 $$;
 
