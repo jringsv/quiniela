@@ -1322,19 +1322,24 @@ async function renderControlPagos() {
       const totDisp     = totPagado - totEnviados;
       const totGanado   = data.reduce((a, r) => a + Number(r.premios_ganados || 0), 0);
       const totPrePag   = data.reduce((a, r) => a + Number(r.premios_pagados || 0), 0);
+      const totPorCobrar = totGanado - totPrePag;
       res.innerHTML = `
         <div class="premio-stat"><span class="big">${totEnviados}</span><span class="lbl">pronósticos enviados ($${totEnviados})</span></div>
         <div class="premio-stat"><span class="big">${money(totPagado)}</span><span class="lbl">pagado en total</span></div>
         <div class="premio-stat"><span class="big ${totDisp < 0 ? "neg" : ""}">${money(totDisp)}</span><span class="lbl">disponible global</span></div>
         <div class="premio-stat"><span class="big">${money(totGanado)}</span><span class="lbl">ganado en premios</span></div>
-        <div class="premio-stat"><span class="big">${money(totPrePag)}</span><span class="lbl">pagado en premios</span></div>`;
+        <div class="premio-stat"><span class="big">${money(totPrePag)}</span><span class="lbl">pagado en premios</span></div>
+        <div class="premio-stat"><span class="big ${totPorCobrar > 0 ? "neg" : ""}">${money(totPorCobrar)}</span><span class="lbl">pendiente de cobrar</span></div>`;
     } else {
       res.innerHTML = "";
     }
   }
-  cont.innerHTML = data.map((r) => {
+  // Render de una tarjeta de usuario (se reutiliza para activos y sin movimiento).
+  const cardHtml = (r) => {
     const env = Number(r.pronosticos_enviados);
     const disp = Number(r.disponible);
+    // Lo que el usuario ganó en premios y aún no se le ha pagado.
+    const porCobrar = Number(r.premios_ganados || 0) - Number(r.premios_pagados || 0);
     const yo = r.user_id === S.user.id;
     const accion = esAdmin
       ? `<div class="pago-card-form">
@@ -1361,10 +1366,28 @@ async function renderControlPagos() {
           <div class="pc-stat"><span class="pc-val">${money(r.dinero_pagado)}</span><span class="pc-lbl">pagado</span></div>
           <div class="pc-stat"><span class="pc-val">${money(r.premios_ganados)}</span><span class="pc-lbl">ganado</span></div>
           <div class="pc-stat"><span class="pc-val">${money(r.premios_pagados)}</span><span class="pc-lbl">prem. pagado</span></div>
+          <div class="pc-stat ${porCobrar > 0 ? "pend" : ""}"><span class="pc-val">${money(porCobrar)}</span><span class="pc-lbl">por cobrar</span></div>
         </div>
         ${accion}
       </div>`;
-  }).join("");
+  };
+
+  // "Sin movimiento" = 0 en todo (no envió, no pagó, no ganó ni cobró premios).
+  // Esos se agrupan en una sección colapsada al final para no llenar la vista.
+  const sinMovimiento = (r) =>
+    Number(r.pronosticos_enviados) === 0 && Number(r.dinero_pagado) === 0 &&
+    Number(r.premios_ganados || 0) === 0 && Number(r.premios_pagados || 0) === 0;
+  const activos = data.filter((r) => !sinMovimiento(r));
+  const vacios = data.filter(sinMovimiento);
+
+  cont.innerHTML =
+    activos.map(cardHtml).join("") +
+    (vacios.length
+      ? `<details class="pagos-vacios">
+           <summary>Sin movimiento (${vacios.length}) — 0 en todo</summary>
+           <div class="pagos-admin pagos-vacios-grid">${vacios.map(cardHtml).join("")}</div>
+         </details>`
+      : "");
 
   if (esAdmin) {
     cont.querySelectorAll("[data-pago]").forEach((b) =>

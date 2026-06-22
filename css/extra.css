@@ -358,12 +358,16 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
   align-items:center; gap:.1rem; text-align:center; min-width:0}
 .pc-val{font-weight:800; font-variant-numeric:tabular-nums; font-size:.95rem; white-space:nowrap}
 .pc-lbl{font-size:.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:.02em}
+/* "Por cobrar" con saldo pendiente: se resalta para que el admin lo note. */
+.pc-stat.pend{border-color:#e0b100; background:rgba(224,177,0,.12)}
+.pc-stat.pend .pc-val{color:#9a7b00}
 
-.pago-card-form{display:flex; gap:.35rem; flex-wrap:wrap; align-items:center;
+.pago-card-form{display:flex; gap:.35rem; flex-wrap:wrap; align-items:stretch;
   border-top:1px dashed var(--line); padding-top:.55rem}
 .pago-card-form .pago-monto{flex:1 1 5.5rem; min-width:5rem; padding:.45rem .55rem;
   border:1px solid var(--line); border-radius:8px; font:inherit; text-align:right}
-.pago-card-form .btn{flex:0 0 auto}
+.pago-card-form .btn{flex:0 0 auto; display:inline-flex; align-items:center;
+  justify-content:center; padding-top:0; padding-bottom:0}
 
 /* Historial desplegable dentro de la tarjeta */
 .pago-hist{border-top:1px dashed var(--line); padding-top:.55rem}
@@ -378,6 +382,16 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 .ph-nota{font-size:.74rem; flex:1 1 100%; color:var(--ink)}
 .pago-hist-list .ph-del{margin-left:auto; flex:0 0 auto; padding:.15rem .45rem;
   font-size:.85rem; line-height:1; color:#c0392b}
+
+/* Sección colapsable de usuarios sin movimiento (0 en todo) */
+.pagos-vacios{grid-column:1 / -1; border:1px dashed var(--line); border-radius:12px;
+  background:var(--bg2); padding:.2rem .6rem}
+.pagos-vacios > summary{cursor:pointer; padding:.5rem .2rem; font-weight:700;
+  color:var(--muted); list-style:none}
+.pagos-vacios > summary::-webkit-details-marker{display:none}
+.pagos-vacios > summary::before{content:"▸ "; font-weight:900}
+.pagos-vacios[open] > summary::before{content:"▾ "}
+.pagos-vacios-grid{padding:.3rem 0 .6rem}
 
 @media(max-width:420px){
   .pagos-admin{grid-template-columns:1fr}
