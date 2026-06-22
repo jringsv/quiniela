@@ -332,8 +332,10 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 .super-log-row .small{margin-top:.15rem}
 
 /* ===================== CONTROL DE PAGOS ===================== */
-.pagos-resumen{display:flex; flex-wrap:wrap; gap:.6rem; margin:.4rem 0 1rem}
+.pagos-resumen{display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin:.4rem 0 1rem}
 .pagos-resumen .big.neg{color:#c0392b}
+@media(max-width:560px){ .pagos-resumen{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:380px){ .pagos-resumen{grid-template-columns:1fr} }
 
 .pagos-admin{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.7rem}
 .pago-card{border:1px solid var(--line); border-radius:14px; padding:.7rem .8rem;
