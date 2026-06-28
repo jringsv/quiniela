@@ -1811,10 +1811,12 @@ async function renderPanelSuper() {
 
   const intFmt = (n) => Number(n).toLocaleString("es-SV");
   const rendimiento = (u) => (Number(u.invertido) > 0 ? Number(u.puntos) / Number(u.invertido) : 0);
-  // Invertido real = lo invertido − lo ganado. Negativo => va ganando (verde).
-  const invReal = (u) => Number(u.invertido) - Number(u.ganado);
+  // Invertido real = invertido − premios YA COBRADOS. Los premios por cobrar
+  // (ganado − pagado) se consideran REINVERTIDOS, así que no se restan.
+  // Negativo => ya cobró más de lo que invirtió (verde).
+  const invReal = (u) => Number(u.invertido) - Number(u.premios_pagados);
   // Rendimiento sobre la inversión REAL (neta). Solo aplica si gastó neto > 0;
-  // quien va con ganancia neta (invReal ≤ 0) no entra (rendimiento "infinito").
+  // quien ya cobró más de lo invertido (invReal ≤ 0) no entra (rendimiento "infinito").
   const rendimientoReal = (u) => (invReal(u) > 0 ? Number(u.puntos) / invReal(u) : 0);
   const moneyNeto = (v) => (v < 0 ? "−" + money(-v) : money(v));
   const conInversion = (u) => Number(u.invertido) >= 1;   // invirtió al menos $1
@@ -1822,13 +1824,13 @@ async function renderPanelSuper() {
 
   rEl.innerHTML =
     barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u). Todos los que invirtieron ≥$1.", (u) => u.invertido, money, { top: TODOS }) +
-    barChart("🧮 Invertido real", "Invertido − ganado. En verde, quien va con ganancia neta. Todos los que invirtieron ≥$1.", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
+    barChart("🧮 Invertido real", "Invertido − premios cobrados (los premios por cobrar cuentan como reinvertidos). Verde = ya cobró más de lo invertido. Todos los que invirtieron ≥$1.", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
     barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
     barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
     barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
     barChart("📈 Más puntos", "Puntaje (mejor de dos: 3 exacto · 1 resultado).", (u) => u.puntos, intFmt) +
     barChart("⚡ Mejor rendimiento", "Puntos por cada $1 invertido.", rendimiento, (v) => v.toFixed(2) + " pts/$") +
-    barChart("⚡ Mejor rendimiento (inversión real)", "Puntos por cada $1 de inversión neta (invertido − ganado).", rendimientoReal, (v) => v.toFixed(2) + " pts/$");
+    barChart("⚡ Mejor rendimiento (inversión real)", "Puntos por cada $1 de inversión neta (invertido − premios cobrados; lo por cobrar se reinvierte).", rendimientoReal, (v) => v.toFixed(2) + " pts/$");
 
   // ---------- Proyección de ganadores ----------
   const ordenados = usuarios.slice().sort((a, b) =>
@@ -1894,7 +1896,10 @@ async function renderPanelSuper() {
     </table>
     </div>
     <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.${haySim
-      ? ` Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> de los ${simulables} partidos pendientes con pronósticos (modelo de goles Poisson, ~1.3 por equipo). Es una estimación, no una garantía.`
+      ? ` Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> (modelo de goles Poisson, ~1.3 por equipo).
+          De los <strong>${g.partidos_pendientes ?? simulables}</strong> partidos pendientes, solo <strong>${simulables}</strong> ya tienen pronósticos y entran en el cálculo${(g.partidos_pendientes ?? 0) - simulables > 0
+            ? `; los otros <strong>${(g.partidos_pendientes ?? 0) - simulables}</strong> son de rondas futuras todavía sin pronosticar y abrirán el panorama al activarse`
+            : ""}. Es una estimación, no una garantía.`
       : ""}</p>`;
 }
 
