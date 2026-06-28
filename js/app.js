@@ -1834,8 +1834,11 @@ async function renderPanelSuper() {
     barChart("⚡ Mejor rendimiento (inversión real)", "Puntos por cada $1 de inversión neta.", rendimientoReal, (v) => v.toFixed(2) + " pts/$");
 
   // ---------- Proyección de ganadores ----------
-  const ordenados = usuarios.slice().sort((a, b) =>
-    Number(b.puntos) - Number(a.puntos) || Number(b.max_posible) - Number(a.max_posible));
+  // No mostramos a quienes aún tienen 0 puntos.
+  const ordenados = usuarios.slice()
+    .filter((u) => Number(u.puntos) > 0)
+    .sort((a, b) =>
+      Number(b.puntos) - Number(a.puntos) || Number(b.max_posible) - Number(a.max_posible));
   const lider = ordenados[0];
   const ptsLider = Number(lider?.puntos || 0);
   const enJuego = g.puntos_en_juego ?? 0;
