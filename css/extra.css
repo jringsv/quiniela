@@ -398,3 +398,60 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 @media(max-width:420px){
   .pagos-admin{grid-template-columns:1fr}
 }
+
+/* ============================================================
+   PANEL SUPER — tablero privado del superadministrador
+   ============================================================ */
+/* Globales: tarjetas tipo "stat" */
+.ps-globales{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:.6rem; margin:.5rem 0 .2rem}
+.ps-stat{background:var(--bg2); border:1px solid var(--line); border-radius:14px;
+  padding:.7rem .6rem; text-align:center; display:flex; flex-direction:column; gap:.15rem}
+.ps-stat .big{font-size:1.5rem; font-weight:900; color:var(--blue); line-height:1.05;
+  font-variant-numeric:tabular-nums}
+.ps-stat .lbl{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em}
+.ps-stat.hot{background:linear-gradient(135deg,var(--blue),var(--blue2)); border-color:var(--blue)}
+.ps-stat.hot .big{color:#fff}
+.ps-stat.hot .lbl{color:rgba(255,255,255,.85)}
+
+/* Rankings: gráficos de barra */
+.ps-rankings{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1.1rem}
+.ps-chart h3{margin:.1rem 0 .15rem; font-size:1rem; font-weight:800; color:var(--blue)}
+.ps-chart-hint{margin:.05rem 0 .5rem}
+.ps-bars{display:flex; flex-direction:column; gap:.4rem}
+.ps-bar-row{display:grid; grid-template-columns:1.6rem minmax(4.5rem,8rem) 1fr auto;
+  align-items:center; gap:.5rem}
+.ps-bar-rank{font-weight:800; font-size:.85rem; text-align:center; color:var(--muted)}
+.ps-bar-name{font-weight:700; font-size:.84rem; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis; text-transform:uppercase}
+.ps-bar-track{background:var(--bg2); border-radius:999px; height:.95rem; overflow:hidden;
+  border:1px solid var(--line)}
+.ps-bar-fill{display:block; height:100%; border-radius:999px;
+  background:linear-gradient(90deg,var(--blue2),var(--blue)); min-width:.4rem;
+  transition:width .5s ease}
+.ps-bar-fill.lead{background:linear-gradient(90deg,#e0b100,#f2c94c)}
+.ps-bar-val{font-weight:800; font-size:.84rem; font-variant-numeric:tabular-nums;
+  white-space:nowrap; text-align:right; min-width:3.5rem}
+
+/* Proyección de ganadores */
+.ps-proy-lead{background:var(--bg2); border-left:5px solid var(--blue); border-radius:9px;
+  padding:.5rem .7rem; margin:.2rem 0 .8rem; font-size:.92rem}
+.ps-proy-scroll{overflow-x:auto}
+.ps-proy-tabla{width:100%; border-collapse:collapse; font-size:.88rem}
+.ps-proy-tabla th,.ps-proy-tabla td{padding:.45rem .5rem; text-align:left;
+  border-bottom:1px solid var(--line2)}
+.ps-proy-tabla th{font-size:.72rem; text-transform:uppercase; letter-spacing:.03em;
+  color:var(--muted); font-weight:700}
+.ps-proy-tabla td.num{text-align:right; font-variant-numeric:tabular-nums}
+.ps-proy-nom{font-weight:700; text-transform:uppercase}
+.ps-proy-tabla tr.lead{background:rgba(224,177,0,.12)}
+.ps-proy-tabla tr.off{opacity:.55}
+.ps-tag{display:inline-block; padding:.1rem .5rem; border-radius:999px; font-size:.7rem;
+  font-weight:800; text-transform:uppercase; letter-spacing:.02em; white-space:nowrap}
+.ps-tag.lead{background:#f2c94c; color:#5a4500}
+.ps-tag.vivo{background:#e7f4ee; color:var(--green)}
+.ps-tag.fuera{background:var(--bg2); color:var(--muted)}
+
+@media(max-width:560px){
+  .ps-bar-row{grid-template-columns:1.4rem minmax(3.5rem,6rem) 1fr auto; gap:.35rem}
+}

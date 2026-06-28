@@ -242,6 +242,7 @@ function showView(name) {
   if (name === "dashboard") cargarLeaderboard();
   if (name === "premios") cargarPremios();
   if (name === "pagos") renderControlPagos();
+  if (name === "panelsuper") renderPanelSuper();
   if (name === "admin") renderAdmin();
 }
 
@@ -1747,6 +1748,108 @@ function renderSuperPanel() {
   selP.innerHTML = ms.map((p) =>
     `<option value="${p.id}">#${p.numero ?? "?"} · ${esc(p.equipo_local)} vs ${esc(p.equipo_visitante)}${p.fecha ? " · " + fmtFecha(p.fecha) : ""}</option>`).join("");
   cargarHistorialOverrides();
+}
+
+// ============================================================
+//  SUPERADMIN: Panel de inteligencia (tablero privado del superadmin)
+// ============================================================
+// Llama a get_panel_super() (RPC SECURITY DEFINER que valida is_superadmin en
+// el backend) y dibuja: globales, rankings con barras y proyección de ganadores.
+async function renderPanelSuper() {
+  if (!esSuperadmin()) return;
+  const gEl = $("#psGlobales"), rEl = $("#psRankings"), pEl = $("#psProyeccion");
+  if (!gEl) return;
+  gEl.innerHTML = '<p class="muted small">Cargando…</p>';
+  rEl.innerHTML = ""; pEl.innerHTML = "";
+  const { data, error } = await sb.rpc("get_panel_super");
+  if (error) { gEl.innerHTML = `<p class="muted">Error: ${esc(error.message)}</p>`; return; }
+  const usuarios = data?.usuarios || [];
+  const g = data?.globales || {};
+  if (!usuarios.length) { gEl.innerHTML = '<p class="muted">Aún no hay jugadores autorizados.</p>'; return; }
+
+  // ---------- Globales ----------
+  gEl.innerHTML = `
+    <div class="ps-stat hot"><span class="big">${g.puntos_en_juego ?? 0}</span><span class="lbl">puntos en juego</span></div>
+    <div class="ps-stat"><span class="big">${g.partidos_pendientes ?? 0}</span><span class="lbl">partidos pendientes</span></div>
+    <div class="ps-stat"><span class="big">${g.partidos_jugados ?? 0}</span><span class="lbl">partidos jugados</span></div>
+    <div class="ps-stat"><span class="big">${g.n_usuarios ?? usuarios.length}</span><span class="lbl">jugadores</span></div>
+    <div class="ps-stat"><span class="big">${money(g.total_invertido)}</span><span class="lbl">total invertido</span></div>
+    <div class="ps-stat"><span class="big">${money(g.total_repartido)}</span><span class="lbl">total en premios</span></div>`;
+
+  // ---------- Rankings (gráficos de barra) ----------
+  // Dibuja una barra horizontal por jugador (top N), escalada al máximo del grupo.
+  const barChart = (titulo, hint, getVal, fmt, top = 8) => {
+    const filas = usuarios.map((u) => ({ nombre: u.nombre, val: Number(getVal(u)) || 0 }))
+      .filter((x) => x.val > 0)
+      .sort((a, b) => b.val - a.val)
+      .slice(0, top);
+    if (!filas.length) {
+      return `<div class="ps-chart"><h3>${titulo}</h3>
+        ${hint ? `<p class="muted small ps-chart-hint">${hint}</p>` : ""}
+        <p class="muted small">Sin datos todavía.</p></div>`;
+    }
+    const max = filas[0].val || 1;
+    const barras = filas.map((x, i) => {
+      const pct = Math.max(4, Math.round((x.val / max) * 100));
+      const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i + 1) + ".";
+      return `<div class="ps-bar-row">
+          <span class="ps-bar-rank">${medalla}</span>
+          <span class="ps-bar-name" title="${esc(x.nombre)}">${esc(x.nombre)}</span>
+          <span class="ps-bar-track"><span class="ps-bar-fill ${i === 0 ? "lead" : ""}" style="width:${pct}%"></span></span>
+          <span class="ps-bar-val">${fmt(x.val)}</span>
+        </div>`;
+    }).join("");
+    return `<div class="ps-chart"><h3>${titulo}</h3>
+        ${hint ? `<p class="muted small ps-chart-hint">${hint}</p>` : ""}
+        <div class="ps-bars">${barras}</div></div>`;
+  };
+
+  const intFmt = (n) => Number(n).toLocaleString("es-SV");
+  const rendimiento = (u) => (Number(u.invertido) > 0 ? Number(u.puntos) / Number(u.invertido) : 0);
+
+  rEl.innerHTML =
+    barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u).", (u) => u.invertido, money) +
+    barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
+    barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
+    barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
+    barChart("📈 Más puntos", "Puntaje (mejor de dos: 3 exacto · 1 resultado).", (u) => u.puntos, intFmt) +
+    barChart("⚡ Mejor rendimiento", "Puntos por cada $1 invertido.", rendimiento, (v) => v.toFixed(2) + " pts/$");
+
+  // ---------- Proyección de ganadores ----------
+  const ordenados = usuarios.slice().sort((a, b) =>
+    Number(b.puntos) - Number(a.puntos) || Number(b.max_posible) - Number(a.max_posible));
+  const lider = ordenados[0];
+  const ptsLider = Number(lider?.puntos || 0);
+  const enJuego = g.puntos_en_juego ?? 0;
+  const contendientes = ordenados.filter((u) => Number(u.max_posible) >= ptsLider);
+
+  pEl.innerHTML = `
+    <p class="ps-proy-lead">🔝 Líder actual: <strong>${esc(lider.nombre)}</strong> con
+       <strong>${ptsLider}</strong> puntos · quedan <strong>${enJuego}</strong> puntos por repartir.</p>
+    <div class="ps-proy-scroll">
+    <table class="ps-proy-tabla">
+      <thead><tr><th>#</th><th>Jugador</th><th>Puntos</th><th>Pend.</th><th>Máx. posible</th><th>Estado</th></tr></thead>
+      <tbody>
+        ${ordenados.map((u, i) => {
+          const esLider = i === 0;
+          const enContencion = Number(u.max_posible) >= ptsLider;
+          const estado = esLider ? '<span class="ps-tag lead">Líder</span>'
+            : enContencion ? '<span class="ps-tag vivo">En contención</span>'
+            : '<span class="ps-tag fuera">Sin alcance</span>';
+          const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i + 1);
+          return `<tr class="${esLider ? "lead" : enContencion ? "" : "off"}">
+              <td>${medalla}</td>
+              <td class="ps-proy-nom">${esc(u.nombre)}</td>
+              <td class="num"><strong>${u.puntos}</strong></td>
+              <td class="num">${u.pendientes}</td>
+              <td class="num">${u.max_posible}</td>
+              <td>${estado}</td>
+            </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+    </div>
+    <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.</p>`;
 }
 
 // Registra/corrige el pronóstico vía RPC SECURITY DEFINER (única vía que

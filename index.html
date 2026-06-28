@@ -17,6 +17,7 @@
       <button data-view="dashboard" class="tab">🏆 Posiciones</button>
       <button data-view="premios" class="tab">💰 Premios</button>
       <button data-view="pagos" class="tab">💵 Control de Pagos</button>
+      <button data-view="panelsuper" class="tab superadmin-only hidden">📊 Panel Super</button>
       <button data-view="admin" class="tab admin-only hidden">⚙️ Admin</button>
     </nav>
     <div class="user-box">
@@ -148,6 +149,30 @@
           enviado: si puso más pronósticos de los que pagó, queda <strong>negativo (en rojo)</strong>.</p>
         <div id="adminPagosResumen" class="pagos-resumen"></div>
         <div id="adminPagos" class="pagos-admin"></div>
+      </div>
+    </section>
+
+    <!-- ===================== PANEL SUPER (solo superadmin) ===================== -->
+    <section id="view-panelsuper" class="view hidden">
+      <div class="card">
+        <h2>📊 Panel del superadministrador <span class="live">● privado</span></h2>
+        <p class="muted small">Tablero de inteligencia de la quiniela. <strong>Solo tú lo ves.</strong>
+          Los números coinciden con las pestañas de Posiciones, Premios y Control de Pagos.</p>
+        <div id="psGlobales" class="ps-globales"></div>
+      </div>
+
+      <div class="card">
+        <h2>🏅 Rankings de jugadores</h2>
+        <div id="psRankings" class="ps-rankings"></div>
+      </div>
+
+      <div class="card">
+        <h2>🔮 Puntos en juego y proyección de ganadores</h2>
+        <p class="muted small">El <strong>máx. posible</strong> es el puntaje actual más
+          <strong>3 puntos por cada partido pendiente</strong> en el que el jugador participa
+          (si acertara el marcador exacto de todos). Están <strong>en contención</strong> quienes
+          podrían aún alcanzar o superar al líder actual.</p>
+        <div id="psProyeccion" class="ps-proyeccion"></div>
       </div>
     </section>
 
