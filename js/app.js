@@ -1824,13 +1824,13 @@ async function renderPanelSuper() {
 
   rEl.innerHTML =
     barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u). Todos los que invirtieron ≥$1.", (u) => u.invertido, money, { top: TODOS }) +
-    barChart("🧮 Invertido real", "Invertido − premios cobrados (los premios por cobrar cuentan como reinvertidos). Verde = ya cobró más de lo invertido. Todos los que invirtieron ≥$1.", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
+    barChart("🧮 Invertido real", "Invertido − premios cobrados; lo por cobrar se reinvierte.", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
     barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
     barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
     barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
     barChart("📈 Más puntos", "Puntaje (mejor de dos: 3 exacto · 1 resultado).", (u) => u.puntos, intFmt) +
     barChart("⚡ Mejor rendimiento", "Puntos por cada $1 invertido.", rendimiento, (v) => v.toFixed(2) + " pts/$") +
-    barChart("⚡ Mejor rendimiento (inversión real)", "Puntos por cada $1 de inversión neta (invertido − premios cobrados; lo por cobrar se reinvierte).", rendimientoReal, (v) => v.toFixed(2) + " pts/$");
+    barChart("⚡ Mejor rendimiento (inversión real)", "Puntos por cada $1 de inversión neta.", rendimientoReal, (v) => v.toFixed(2) + " pts/$");
 
   // ---------- Proyección de ganadores ----------
   const ordenados = usuarios.slice().sort((a, b) =>
