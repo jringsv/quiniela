@@ -1781,9 +1781,10 @@ async function renderPanelSuper() {
   // opts.signed = true => incluye valores negativos (verde = ganancia neta) y
   // escala por el máximo en valor absoluto.
   const barChart = (titulo, hint, getVal, fmt, opts = {}) => {
-    const { top = 8, signed = false } = opts;
-    let filas = usuarios.map((u) => ({ nombre: u.nombre, val: Number(getVal(u)) || 0 }));
-    filas = signed ? filas.filter((x) => x.val !== 0) : filas.filter((x) => x.val > 0);
+    const { top = 8, signed = false, keep = null } = opts;
+    let filas = usuarios.map((u) => ({ nombre: u.nombre, val: Number(getVal(u)) || 0, u }));
+    // keep(u) personalizado, o el filtro por defecto: signed => val≠0, si no => val>0.
+    filas = filas.filter((x) => (keep ? keep(x.u) : (signed ? x.val !== 0 : x.val > 0)));
     filas = filas.sort((a, b) => b.val - a.val).slice(0, top);
     if (!filas.length) {
       return `<div class="ps-chart"><h3>${titulo}</h3>
@@ -1812,16 +1813,22 @@ async function renderPanelSuper() {
   const rendimiento = (u) => (Number(u.invertido) > 0 ? Number(u.puntos) / Number(u.invertido) : 0);
   // Invertido real = lo invertido − lo ganado. Negativo => va ganando (verde).
   const invReal = (u) => Number(u.invertido) - Number(u.ganado);
+  // Rendimiento sobre la inversión REAL (neta). Solo aplica si gastó neto > 0;
+  // quien va con ganancia neta (invReal ≤ 0) no entra (rendimiento "infinito").
+  const rendimientoReal = (u) => (invReal(u) > 0 ? Number(u.puntos) / invReal(u) : 0);
   const moneyNeto = (v) => (v < 0 ? "−" + money(-v) : money(v));
+  const conInversion = (u) => Number(u.invertido) >= 1;   // invirtió al menos $1
+  const TODOS = 999;
 
   rEl.innerHTML =
-    barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u).", (u) => u.invertido, money) +
-    barChart("🧮 Invertido real", "Invertido − ganado. En verde, quien va con ganancia neta.", invReal, moneyNeto, { signed: true, top: 15 }) +
+    barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u). Todos los que invirtieron ≥$1.", (u) => u.invertido, money, { top: TODOS }) +
+    barChart("🧮 Invertido real", "Invertido − ganado. En verde, quien va con ganancia neta. Todos los que invirtieron ≥$1.", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
     barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
     barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
     barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
     barChart("📈 Más puntos", "Puntaje (mejor de dos: 3 exacto · 1 resultado).", (u) => u.puntos, intFmt) +
-    barChart("⚡ Mejor rendimiento", "Puntos por cada $1 invertido.", rendimiento, (v) => v.toFixed(2) + " pts/$");
+    barChart("⚡ Mejor rendimiento", "Puntos por cada $1 invertido.", rendimiento, (v) => v.toFixed(2) + " pts/$") +
+    barChart("⚡ Mejor rendimiento (inversión real)", "Puntos por cada $1 de inversión neta (invertido − ganado).", rendimientoReal, (v) => v.toFixed(2) + " pts/$");
 
   // ---------- Proyección de ganadores ----------
   const ordenados = usuarios.slice().sort((a, b) =>
