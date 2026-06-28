@@ -1812,10 +1812,9 @@ async function renderPanelSuper() {
 
   const intFmt = (n) => Number(n).toLocaleString("es-SV");
   const rendimiento = (u) => (Number(u.invertido) > 0 ? Number(u.puntos) / Number(u.invertido) : 0);
-  // Invertido real = invertido − premios YA COBRADOS. Los premios por cobrar
-  // (ganado − pagado) se consideran REINVERTIDOS, así que no se restan.
-  // Negativo => ya cobró más de lo que invirtió (verde).
-  const invReal = (u) => Number(u.invertido) - Number(u.premios_pagados);
+  // Invertido real = lo gastado − TODO lo ganado (premios cobrados + por cobrar).
+  // Negativo => ya ganó más de lo que invirtió (verde).
+  const invReal = (u) => Number(u.invertido) - Number(u.ganado);
   // Rendimiento sobre la inversión REAL (neta). Si la inversión real es ≤ 0
   // (ya recuperó todo lo invertido), se considera como 0: su rendimiento es el
   // TOTAL de sus puntos (cada punto cuenta como 1 pts/$, máximo aprovechamiento).
@@ -1826,7 +1825,7 @@ async function renderPanelSuper() {
 
   rEl.innerHTML =
     barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u). Todos los que invirtieron ≥$1.", (u) => u.invertido, money, { top: TODOS }) +
-    barChart("🧮 Invertido real", "Invertido − premios cobrados; lo por cobrar se reinvierte.", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
+    barChart("🧮 Invertido real", "Invertido − ganado (cobrado y por cobrar).", invReal, moneyNeto, { signed: true, top: TODOS, keep: conInversion }) +
     barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
     barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
     barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
