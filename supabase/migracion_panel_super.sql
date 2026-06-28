@@ -132,6 +132,29 @@ begin
     where p.aplica_quiniela
       and (p.gol_local is null or p.gol_visitante is null)
     group by pu.user_id
+  ),
+  -- DETALLE PARA LA SIMULACIÓN: por cada partido pendiente, los pronósticos
+  -- (ambos slots) de cada participante activo. El frontend simula los marcadores
+  -- y estima la probabilidad de cada jugador de quedar en el top 1/2/3.
+  pend_matches as (
+    select id from partidos
+    where aplica_quiniela and (gol_local is null or gol_visitante is null)
+  ),
+  pred_pend as (
+    select pp.partido_id, pr.nombre,
+           jsonb_agg(jsonb_build_array(pp.gol_local, pp.gol_visitante) order by pp.slot) as preds
+    from pred_partidos pp
+    join pend_matches pm    on pm.id = pp.partido_id
+    join partido_usuario pu on pu.partido_id = pp.partido_id and pu.user_id = pp.user_id
+    join profiles pr        on pr.id = pp.user_id and (pr.aprobado or pr.is_admin)
+    where not pp.descartado
+    group by pp.partido_id, pr.nombre
+  ),
+  pend_det as (
+    select partido_id,
+           jsonb_agg(jsonb_build_object('nombre', nombre, 'preds', preds)) as jugadores
+    from pred_pend
+    group by partido_id
   )
   select jsonb_build_object(
     'usuarios', coalesce((
@@ -168,7 +191,13 @@ begin
                                  and (gol_local is null or gol_visitante is null)),
       'total_invertido',     coalesce((select sum(invertido) from inv), 0),
       'total_repartido',     coalesce((select sum(ganado) from premios), 0)
-    )
+    ),
+    'pendientes_detalle', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'partido_id', partido_id,
+               'jugadores',  jugadores))
+      from pend_det
+    ), '[]'::jsonb)
   ) into v;
 
   return v;

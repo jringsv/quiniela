@@ -1778,25 +1778,29 @@ async function renderPanelSuper() {
 
   // ---------- Rankings (gráficos de barra) ----------
   // Dibuja una barra horizontal por jugador (top N), escalada al máximo del grupo.
-  const barChart = (titulo, hint, getVal, fmt, top = 8) => {
-    const filas = usuarios.map((u) => ({ nombre: u.nombre, val: Number(getVal(u)) || 0 }))
-      .filter((x) => x.val > 0)
-      .sort((a, b) => b.val - a.val)
-      .slice(0, top);
+  // opts.signed = true => incluye valores negativos (verde = ganancia neta) y
+  // escala por el máximo en valor absoluto.
+  const barChart = (titulo, hint, getVal, fmt, opts = {}) => {
+    const { top = 8, signed = false } = opts;
+    let filas = usuarios.map((u) => ({ nombre: u.nombre, val: Number(getVal(u)) || 0 }));
+    filas = signed ? filas.filter((x) => x.val !== 0) : filas.filter((x) => x.val > 0);
+    filas = filas.sort((a, b) => b.val - a.val).slice(0, top);
     if (!filas.length) {
       return `<div class="ps-chart"><h3>${titulo}</h3>
         ${hint ? `<p class="muted small ps-chart-hint">${hint}</p>` : ""}
         <p class="muted small">Sin datos todavía.</p></div>`;
     }
-    const max = filas[0].val || 1;
+    const max = Math.max(...filas.map((x) => Math.abs(x.val)), 1);
     const barras = filas.map((x, i) => {
-      const pct = Math.max(4, Math.round((x.val / max) * 100));
+      const pct = Math.max(4, Math.round((Math.abs(x.val) / max) * 100));
       const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i + 1) + ".";
+      const neg = signed && x.val < 0;
+      const cls = neg ? "neg" : (i === 0 ? "lead" : "");
       return `<div class="ps-bar-row">
           <span class="ps-bar-rank">${medalla}</span>
           <span class="ps-bar-name" title="${esc(x.nombre)}">${esc(x.nombre)}</span>
-          <span class="ps-bar-track"><span class="ps-bar-fill ${i === 0 ? "lead" : ""}" style="width:${pct}%"></span></span>
-          <span class="ps-bar-val">${fmt(x.val)}</span>
+          <span class="ps-bar-track"><span class="ps-bar-fill ${cls}" style="width:${pct}%"></span></span>
+          <span class="ps-bar-val ${neg ? "neg" : ""}">${fmt(x.val)}</span>
         </div>`;
     }).join("");
     return `<div class="ps-chart"><h3>${titulo}</h3>
@@ -1806,9 +1810,13 @@ async function renderPanelSuper() {
 
   const intFmt = (n) => Number(n).toLocaleString("es-SV");
   const rendimiento = (u) => (Number(u.invertido) > 0 ? Number(u.puntos) / Number(u.invertido) : 0);
+  // Invertido real = lo invertido − lo ganado. Negativo => va ganando (verde).
+  const invReal = (u) => Number(u.invertido) - Number(u.ganado);
+  const moneyNeto = (v) => (v < 0 ? "−" + money(-v) : money(v));
 
   rEl.innerHTML =
     barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u).", (u) => u.invertido, money) +
+    barChart("🧮 Invertido real", "Invertido − ganado. En verde, quien va con ganancia neta.", invReal, moneyNeto, { signed: true }) +
     barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
     barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
     barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
@@ -1823,12 +1831,19 @@ async function renderPanelSuper() {
   const enJuego = g.puntos_en_juego ?? 0;
   const contendientes = ordenados.filter((u) => Number(u.max_posible) >= ptsLider);
 
+  // Probabilidad (Monte Carlo) de terminar en top 1/2/3.
+  const prob = simularProbabilidades(usuarios, data?.pendientes_detalle || []);
+  const fmtPct = (p) => (p <= 0 ? "—" : p < 0.005 ? "<1%" : Math.round(p * 100) + "%");
+  // Intensidad de color según probabilidad (0–1) para la columna Top 1.
+  const heat = (p) => (p <= 0 ? "" : `style="background:rgba(0,104,71,${(0.12 + p * 0.6).toFixed(2)})"`);
+
   pEl.innerHTML = `
     <p class="ps-proy-lead">🔝 Líder actual: <strong>${esc(lider.nombre)}</strong> con
        <strong>${ptsLider}</strong> puntos · quedan <strong>${enJuego}</strong> puntos por repartir.</p>
     <div class="ps-proy-scroll">
     <table class="ps-proy-tabla">
-      <thead><tr><th>#</th><th>Jugador</th><th>Puntos</th><th>Pend.</th><th>Máx. posible</th><th>Estado</th></tr></thead>
+      <thead><tr><th>#</th><th>Jugador</th><th>Puntos</th><th>Pend.</th><th>Máx.</th>
+        <th>P(Top&nbsp;3)</th><th>P(Top&nbsp;2)</th><th>P(Top&nbsp;1)</th><th>Estado</th></tr></thead>
       <tbody>
         ${ordenados.map((u, i) => {
           const esLider = i === 0;
@@ -1837,19 +1852,82 @@ async function renderPanelSuper() {
             : enContencion ? '<span class="ps-tag vivo">En contención</span>'
             : '<span class="ps-tag fuera">Sin alcance</span>';
           const medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : (i + 1);
+          const pr = prob.get(u.nombre) || { t1: 0, t2: 0, t3: 0 };
           return `<tr class="${esLider ? "lead" : enContencion ? "" : "off"}">
               <td>${medalla}</td>
               <td class="ps-proy-nom">${esc(u.nombre)}</td>
               <td class="num"><strong>${u.puntos}</strong></td>
               <td class="num">${u.pendientes}</td>
               <td class="num">${u.max_posible}</td>
+              <td class="num">${fmtPct(pr.t3)}</td>
+              <td class="num">${fmtPct(pr.t2)}</td>
+              <td class="num prob1" ${heat(pr.t1)}>${fmtPct(pr.t1)}</td>
               <td>${estado}</td>
             </tr>`;
         }).join("")}
       </tbody>
     </table>
     </div>
-    <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.</p>`;
+    <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.
+      Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> de los partidos pendientes
+      (modelo de goles Poisson, ~1.3 por equipo). Es una estimación, no una garantía.</p>`;
+}
+
+// ---------- Monte Carlo: probabilidad de terminar en top 1/2/3 ----------
+// Para cada simulación, sortea un marcador de cada partido pendiente (goles
+// Poisson independientes) y suma a cada jugador los puntos que ganaría con sus
+// pronósticos (mejor de los dos: 3 exacto · 1 acertar resultado). Luego ordena
+// y cuenta cuántas veces cada quien cae en el top 1/2/3.
+const SIM_N = 4000;
+function simularProbabilidades(usuarios, pendDet, N = SIM_N) {
+  const base = usuarios.map((u) => ({ nombre: u.nombre, pts: Number(u.puntos) || 0 }));
+  const idx = new Map(base.map((u, i) => [u.nombre, i]));
+  const n = base.length;
+  if (!n) return new Map();
+  // Partidos pendientes con sus participantes (índice + pronósticos).
+  const matches = (pendDet || []).map((m) => ({
+    jug: (m.jugadores || [])
+      .map((j) => ({ i: idx.get(j.nombre), preds: j.preds || [] }))
+      .filter((j) => j.i != null && j.preds.length),
+  })).filter((m) => m.jug.length);
+
+  const L = 1.3;                       // goles promedio por equipo
+  const poisson = (lam) => {           // método de Knuth
+    const lim = Math.exp(-lam);
+    let k = 0, p = 1;
+    do { k++; p *= Math.random(); } while (p > lim);
+    return k - 1;
+  };
+  const sgn = (x) => (x > 0 ? 1 : x < 0 ? -1 : 0);
+
+  const t1 = new Int32Array(n), t2 = new Int32Array(n), t3 = new Int32Array(n);
+  const tot = new Float64Array(n);
+  const order = Array.from({ length: n }, (_, i) => i);
+
+  for (let s = 0; s < N; s++) {
+    for (let i = 0; i < n; i++) tot[i] = base[i].pts;
+    for (const m of matches) {
+      const gl = poisson(L), gv = poisson(L), rs = sgn(gl - gv);
+      for (const j of m.jug) {
+        let best = 0;
+        for (const pr of j.preds) {
+          const pl = +pr[0], pv = +pr[1];
+          const pts = (pl === gl && pv === gv) ? 3 : (sgn(pl - pv) === rs ? 1 : 0);
+          if (pts > best) best = pts;
+        }
+        if (best) tot[j.i] += best;
+      }
+    }
+    // Ordena con un desempate aleatorio diminuto (reparte los empates por igual).
+    order.sort((a, b) => (tot[b] - tot[a]) || (Math.random() - 0.5));
+    t1[order[0]]++;
+    if (n > 1) { t2[order[0]]++; t2[order[1]]++; }
+    else t2[order[0]]++;
+    for (let r = 0; r < Math.min(3, n); r++) t3[order[r]]++;
+  }
+  const res = new Map();
+  base.forEach((u, i) => res.set(u.nombre, { t1: t1[i] / N, t2: t2[i] / N, t3: t3[i] / N }));
+  return res;
 }
 
 // Registra/corrige el pronóstico vía RPC SECURITY DEFINER (única vía que

@@ -403,13 +403,15 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
    PANEL SUPER — tablero privado del superadministrador
    ============================================================ */
 /* Globales: tarjetas tipo "stat" */
-.ps-globales{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:.6rem; margin:.5rem 0 .2rem}
+.ps-globales{display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr);
+  gap:.5rem; margin:.5rem 0 .2rem}
 .ps-stat{background:var(--bg2); border:1px solid var(--line); border-radius:14px;
-  padding:.7rem .6rem; text-align:center; display:flex; flex-direction:column; gap:.15rem}
-.ps-stat .big{font-size:1.5rem; font-weight:900; color:var(--blue); line-height:1.05;
-  font-variant-numeric:tabular-nums}
-.ps-stat .lbl{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em}
+  padding:.6rem .45rem; text-align:center; display:flex; flex-direction:column; gap:.15rem;
+  min-width:0}
+.ps-stat .big{font-size:clamp(1.05rem,2.6vw,1.5rem); font-weight:900; color:var(--blue);
+  line-height:1.05; font-variant-numeric:tabular-nums; white-space:nowrap}
+.ps-stat .lbl{font-size:.68rem; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.02em; line-height:1.15}
 .ps-stat.hot{background:linear-gradient(135deg,var(--blue),var(--blue2)); border-color:var(--blue)}
 .ps-stat.hot .big{color:#fff}
 .ps-stat.hot .lbl{color:rgba(255,255,255,.85)}
@@ -430,8 +432,10 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
   background:linear-gradient(90deg,var(--blue2),var(--blue)); min-width:.4rem;
   transition:width .5s ease}
 .ps-bar-fill.lead{background:linear-gradient(90deg,#e0b100,#f2c94c)}
+.ps-bar-fill.neg{background:linear-gradient(90deg,#1e9e6a,var(--green))}
 .ps-bar-val{font-weight:800; font-size:.84rem; font-variant-numeric:tabular-nums;
   white-space:nowrap; text-align:right; min-width:3.5rem}
+.ps-bar-val.neg{color:var(--green)}
 
 /* Proyección de ganadores */
 .ps-proy-lead{background:var(--bg2); border-left:5px solid var(--blue); border-radius:9px;
@@ -443,6 +447,7 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 .ps-proy-tabla th{font-size:.72rem; text-transform:uppercase; letter-spacing:.03em;
   color:var(--muted); font-weight:700}
 .ps-proy-tabla td.num{text-align:right; font-variant-numeric:tabular-nums}
+.ps-proy-tabla td.prob1{font-weight:800; border-radius:6px}
 .ps-proy-nom{font-weight:700; text-transform:uppercase}
 .ps-proy-tabla tr.lead{background:rgba(224,177,0,.12)}
 .ps-proy-tabla tr.off{opacity:.55}
