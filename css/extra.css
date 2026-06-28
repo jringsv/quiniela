@@ -440,6 +440,8 @@ details.premio-card[open] > summary.premio-summary .premio-head-r::after{transfo
 /* Proyección de ganadores */
 .ps-proy-lead{background:var(--bg2); border-left:5px solid var(--blue); border-radius:9px;
   padding:.5rem .7rem; margin:.2rem 0 .8rem; font-size:.92rem}
+.ps-proy-aviso{background:#fff7e0; border:1px solid #e8cf7a; border-radius:9px;
+  padding:.5rem .7rem; margin:.2rem 0 .8rem; font-size:.84rem; color:#7a5b00}
 .ps-proy-scroll{overflow-x:auto}
 .ps-proy-tabla{width:100%; border-collapse:collapse; font-size:.88rem}
 .ps-proy-tabla th,.ps-proy-tabla td{padding:.45rem .5rem; text-align:left;

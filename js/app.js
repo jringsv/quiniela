@@ -1816,7 +1816,7 @@ async function renderPanelSuper() {
 
   rEl.innerHTML =
     barChart("💸 Mayor inversión", "Pronósticos enviados ($1 c/u).", (u) => u.invertido, money) +
-    barChart("🧮 Invertido real", "Invertido − ganado. En verde, quien va con ganancia neta.", invReal, moneyNeto, { signed: true }) +
+    barChart("🧮 Invertido real", "Invertido − ganado. En verde, quien va con ganancia neta.", invReal, moneyNeto, { signed: true, top: 15 }) +
     barChart("🏆 Más ganado", "Premios por marcador exacto (incluye acumulados).", (u) => u.ganado, money) +
     barChart("📝 Más pronósticos", "Marcadores digitados (cuenta ambos pronósticos).", (u) => u.n_pronosticos, intFmt) +
     barChart("✌️ Más dobles pronósticos", "Partidos con dos marcadores distintos.", (u) => u.n_dobles, intFmt) +
@@ -1832,14 +1832,32 @@ async function renderPanelSuper() {
   const contendientes = ordenados.filter((u) => Number(u.max_posible) >= ptsLider);
 
   // Probabilidad (Monte Carlo) de terminar en top 1/2/3.
-  const prob = simularProbabilidades(usuarios, data?.pendientes_detalle || []);
-  const fmtPct = (p) => (p <= 0 ? "—" : p < 0.005 ? "<1%" : Math.round(p * 100) + "%");
+  const pendDet = data?.pendientes_detalle;
+  // ¿Hay partidos pendientes con pronósticos que SÍ podamos simular?
+  const simulables = Array.isArray(pendDet)
+    ? pendDet.reduce((a, m) => a + ((m.jugadores || []).length ? 1 : 0), 0) : 0;
+  // Si la función devolvió la versión vieja (sin 'pendientes_detalle') NO podemos
+  // simular: avisamos en vez de mostrar un 100% engañoso.
+  const sinDatosSim = pendDet === undefined;
+  const haySim = simulables > 0;
+  const prob = haySim ? simularProbabilidades(usuarios, pendDet) : new Map();
+  // "—" cuando no hay simulación; "0%/<1%/n%" cuando sí.
+  const fmtPct = (p) => (!haySim ? "—" : p <= 0 ? "0%" : p < 0.005 ? "<1%" : Math.round(p * 100) + "%");
   // Intensidad de color según probabilidad (0–1) para la columna Top 1.
-  const heat = (p) => (p <= 0 ? "" : `style="background:rgba(0,104,71,${(0.12 + p * 0.6).toFixed(2)})"`);
+  const heat = (p) => (!haySim || p <= 0 ? "" : `style="background:rgba(0,104,71,${(0.12 + p * 0.6).toFixed(2)})"`);
+
+  // Aviso cuando no se pudo simular pero sí quedan partidos por jugar.
+  const avisoSim = (!haySim && (g.partidos_pendientes ?? 0) > 0)
+    ? `<p class="ps-proy-aviso">⚠️ ${sinDatosSim
+        ? "Para calcular las probabilidades, vuelve a ejecutar <strong>migracion_panel_super.sql</strong> en Supabase (la versión actual de la función aún no envía los pronósticos pendientes)."
+        : "Aún no hay pronósticos en los partidos pendientes para simular."}
+        Mientras tanto, las columnas P(Top) muestran “—”.</p>`
+    : "";
 
   pEl.innerHTML = `
     <p class="ps-proy-lead">🔝 Líder actual: <strong>${esc(lider.nombre)}</strong> con
        <strong>${ptsLider}</strong> puntos · quedan <strong>${enJuego}</strong> puntos por repartir.</p>
+    ${avisoSim}
     <div class="ps-proy-scroll">
     <table class="ps-proy-tabla">
       <thead><tr><th>#</th><th>Jugador</th><th>Puntos</th><th>Pend.</th><th>Máx.</th>
@@ -1868,9 +1886,9 @@ async function renderPanelSuper() {
       </tbody>
     </table>
     </div>
-    <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.
-      Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> de los partidos pendientes
-      (modelo de goles Poisson, ~1.3 por equipo). Es una estimación, no una garantía.</p>`;
+    <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.${haySim
+      ? ` Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> de los ${simulables} partidos pendientes con pronósticos (modelo de goles Poisson, ~1.3 por equipo). Es una estimación, no una garantía.`
+      : ""}</p>`;
 }
 
 // ---------- Monte Carlo: probabilidad de terminar en top 1/2/3 ----------
