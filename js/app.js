@@ -247,19 +247,20 @@ function showView(name) {
 }
 
 // ============================================================
-//  BLOQUEO POR PARTIDO (cada marcador cierra 15 min antes del juego)
+//  BLOQUEO POR PARTIDO (cierre REAL 5 min antes; el rótulo muestra 15)
 // ============================================================
-const LOCK_MIN = 15;                       // minutos antes de cada partido
+const LOCK_MIN = 5;                        // minutos REALES antes de cada partido (cierre efectivo)
+const LOCK_MIN_LABEL = 15;                 // minutos que se MUESTRAN en los rótulos al usuario
 function cargarConfigLock() {
   const b = $("#lockBanner");
   if (b) {
     b.className = "banner open";
-    b.textContent = "✏️ Cada marcador se cierra " + LOCK_MIN +
+    b.textContent = "✏️ Cada marcador se cierra " + LOCK_MIN_LABEL +
       " minutos antes de que empiece su partido. Después ya no podrás modificarlo.";
     b.classList.remove("hidden");
   }
   const fl = $("#footLock");
-  if (fl) fl.textContent = "Cada partido cierra " + LOCK_MIN + " min antes de empezar (hora El Salvador).";
+  if (fl) fl.textContent = "Cada partido cierra " + LOCK_MIN_LABEL + " min antes de empezar (hora El Salvador).";
 }
 // Hora actual SEGÚN EL SERVIDOR (corrige el reloj del navegador si está desfasado).
 const nowMs = () => Date.now() + (S.clockOffset || 0);
@@ -275,7 +276,7 @@ async function syncReloj() {
     S.clockOffset = serverMs - (t0 + (t1 - t0) / 2);   // compensa medio round-trip
   } catch { /* sin sincronizar: seguimos con el reloj local */ }
 }
-// ¿Ya cerró este partido? (now >= hora_del_partido - 15 min). Sin fecha => abierto.
+// ¿Ya cerró este partido? (now >= hora_del_partido - LOCK_MIN). Sin fecha => abierto.
 function partidoBloqueado(p) {
   if (!p) return false;
   // Si el backend ya rechazó un guardado por cierre, lo respetamos siempre.
@@ -495,7 +496,7 @@ function filaMarcador(p) {
   const sc = S.scores[p.numero] || {};
   const ctx = fmtFecha(p.fecha);
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
-  const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
+  const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN_LABEL} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
   const np = nPredDe(p);   // 0 = no participa · 1 ó 2 = pronósticos permitidos
   const npTag = (np === 0)
     ? `<span class="tag-cerrado" title="No estás activado para pronosticar en este partido.">no participas</span>` : "";
@@ -609,7 +610,7 @@ async function guardarPartido(p, btn, msgEl) {
         fila.querySelectorAll("input").forEach((i) => (i.disabled = true));
       }
       btn.style.display = "none";
-      msg(msgEl, "⏱️ Este partido ya cerró (15 min antes de empezar). Ya no se puede modificar.", false);
+      msg(msgEl, "⏱️ Este partido ya cerró (15 min antes de empezar). Ya no se puede modificar.", false);   // rótulo fijo en 15
     } else {
       msg(msgEl, "Error: " + e.message, false);
     }
@@ -1815,9 +1816,10 @@ async function renderPanelSuper() {
   // (ganado − pagado) se consideran REINVERTIDOS, así que no se restan.
   // Negativo => ya cobró más de lo que invirtió (verde).
   const invReal = (u) => Number(u.invertido) - Number(u.premios_pagados);
-  // Rendimiento sobre la inversión REAL (neta). Solo aplica si gastó neto > 0;
-  // quien ya cobró más de lo invertido (invReal ≤ 0) no entra (rendimiento "infinito").
-  const rendimientoReal = (u) => (invReal(u) > 0 ? Number(u.puntos) / invReal(u) : 0);
+  // Rendimiento sobre la inversión REAL (neta). Si la inversión real es ≤ 0
+  // (ya recuperó todo lo invertido), se considera como 0: su rendimiento es el
+  // TOTAL de sus puntos (cada punto cuenta como 1 pts/$, máximo aprovechamiento).
+  const rendimientoReal = (u) => (invReal(u) > 0 ? Number(u.puntos) / invReal(u) : Number(u.puntos));
   const moneyNeto = (v) => (v < 0 ? "−" + money(-v) : money(v));
   const conInversion = (u) => Number(u.invertido) >= 1;   // invirtió al menos $1
   const TODOS = 999;
