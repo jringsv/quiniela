@@ -1744,7 +1744,11 @@ function renderSuperPanel() {
     .sort((a, b) => (a.nombre || "").localeCompare(b.nombre || "", "es"));
   selU.innerHTML = users.map((u) =>
     `<option value="${u.id}">${esc(u.nombre || u.email || "—")}${u.email ? " · " + esc(u.email) : ""}</option>`).join("");
-  const ms = S.partidos.slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
+  // Solo partidos de fase eliminatoria: los de grupos ya no se pueden registrar
+  // pos-partido (se quitan del select). Los cambios ya hechos siguen en la bitácora.
+  const ms = S.partidos.slice()
+    .filter((p) => p.fase !== "grupos")
+    .sort((a, b) => (a.numero || 0) - (b.numero || 0));
   selP.innerHTML = ms.map((p) =>
     `<option value="${p.id}">#${p.numero ?? "?"} · ${esc(p.equipo_local)} vs ${esc(p.equipo_visitante)}${p.fecha ? " · " + fmtFecha(p.fecha) : ""}</option>`).join("");
   cargarHistorialOverrides();
