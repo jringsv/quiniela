@@ -247,20 +247,19 @@ function showView(name) {
 }
 
 // ============================================================
-//  BLOQUEO POR PARTIDO (cierre REAL 5 min antes; el rótulo muestra 15)
+//  BLOQUEO POR PARTIDO (cada marcador cierra 15 min antes del juego)
 // ============================================================
-const LOCK_MIN = 5;                        // minutos REALES antes de cada partido (cierre efectivo)
-const LOCK_MIN_LABEL = 15;                 // minutos que se MUESTRAN en los rótulos al usuario
+const LOCK_MIN = 15;                       // minutos antes de cada partido
 function cargarConfigLock() {
   const b = $("#lockBanner");
   if (b) {
     b.className = "banner open";
-    b.textContent = "✏️ Cada marcador se cierra " + LOCK_MIN_LABEL +
+    b.textContent = "✏️ Cada marcador se cierra " + LOCK_MIN +
       " minutos antes de que empiece su partido. Después ya no podrás modificarlo.";
     b.classList.remove("hidden");
   }
   const fl = $("#footLock");
-  if (fl) fl.textContent = "Cada partido cierra " + LOCK_MIN_LABEL + " min antes de empezar (hora El Salvador).";
+  if (fl) fl.textContent = "Cada partido cierra " + LOCK_MIN + " min antes de empezar (hora El Salvador).";
 }
 // Hora actual SEGÚN EL SERVIDOR (corrige el reloj del navegador si está desfasado).
 const nowMs = () => Date.now() + (S.clockOffset || 0);
@@ -276,7 +275,7 @@ async function syncReloj() {
     S.clockOffset = serverMs - (t0 + (t1 - t0) / 2);   // compensa medio round-trip
   } catch { /* sin sincronizar: seguimos con el reloj local */ }
 }
-// ¿Ya cerró este partido? (now >= hora_del_partido - LOCK_MIN). Sin fecha => abierto.
+// ¿Ya cerró este partido? (now >= hora_del_partido - 15 min). Sin fecha => abierto.
 function partidoBloqueado(p) {
   if (!p) return false;
   // Si el backend ya rechazó un guardado por cierre, lo respetamos siempre.
@@ -496,7 +495,7 @@ function filaMarcador(p) {
   const sc = S.scores[p.numero] || {};
   const ctx = fmtFecha(p.fecha);
   const tag = aplica ? "" : `<span class="tag-no-aplica" title="Este partido no otorga los puntos de marcador (3/1).">no suma marcador</span>`;
-  const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN_LABEL} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
+  const lockTag = cerrado ? `<span class="tag-cerrado" title="Este partido cerró ${LOCK_MIN} min antes de empezar. Ya no se puede modificar.">🔒 cerrado</span>` : "";
   const np = nPredDe(p);   // 0 = no participa · 1 ó 2 = pronósticos permitidos
   const npTag = (np === 0)
     ? `<span class="tag-cerrado" title="No estás activado para pronosticar en este partido.">no participas</span>` : "";
@@ -610,7 +609,7 @@ async function guardarPartido(p, btn, msgEl) {
         fila.querySelectorAll("input").forEach((i) => (i.disabled = true));
       }
       btn.style.display = "none";
-      msg(msgEl, "⏱️ Este partido ya cerró (15 min antes de empezar). Ya no se puede modificar.", false);   // rótulo fijo en 15
+      msg(msgEl, "⏱️ Este partido ya cerró (15 min antes de empezar). Ya no se puede modificar.", false);
     } else {
       msg(msgEl, "Error: " + e.message, false);
     }
