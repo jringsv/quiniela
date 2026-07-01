@@ -231,6 +231,17 @@
 .premio-card.pagado{border-color:rgba(0,104,71,.5); box-shadow:0 0 0 1px rgba(0,104,71,.25), var(--shadow)}
 .premio-acciones{display:flex; justify-content:flex-end; border-top:1px dashed var(--line2); padding-top:.45rem}
 
+/* Fase de grupos colapsable en la pestaña "Tablas de grupo y llaves".
+   Cerrada por defecto: solo se ve el título; un clic la expande. La llave
+   queda siempre visible debajo. */
+details.group-collapse > summary{list-style:none; cursor:pointer; outline:none;
+  display:flex; align-items:center; gap:.5rem}
+details.group-collapse > summary::-webkit-details-marker{display:none}
+details.group-collapse > summary h2{margin:0}
+details.group-collapse > summary::after{content:"▸"; margin-left:auto; color:var(--muted);
+  font-size:.9rem; transition:transform .15s ease}
+details.group-collapse[open] > summary::after{transform:rotate(90deg)}
+
 /* Tarjeta de premio pagada = colapsable (<details>). Se ve solo la cabecera;
    un clic la expande. Atenuada y con caret indicador mientras está cerrada. */
 details.premio-card{padding-top:.7rem}
