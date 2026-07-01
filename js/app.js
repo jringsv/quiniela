@@ -1845,29 +1845,41 @@ async function renderPanelSuper() {
   const lider = ordenados[0];
   const ptsLider = Number(lider?.puntos || 0);
   const enJuego = g.puntos_en_juego ?? 0;
-  const contendientes = ordenados.filter((u) => Number(u.max_posible) >= ptsLider);
 
   // Probabilidad (Monte Carlo) de terminar en top 1/2/3.
   const pendDet = data?.pendientes_detalle;
-  // ¿Hay partidos pendientes con pronósticos que SÍ podamos simular?
+  // Partidos pendientes con pronósticos reales: se simulan tal cual (con los
+  // marcadores que ya digitó cada quien).
   const simulables = Array.isArray(pendDet)
     ? pendDet.reduce((a, m) => a + ((m.jugadores || []).length ? 1 : 0), 0) : 0;
-  // Si la función devolvió la versión vieja (sin 'pendientes_detalle') NO podemos
-  // simular: avisamos en vez de mostrar un 100% engañoso.
+  // Resto de partidos que FALTAN del Mundial, aún sin pronósticos (rondas futuras
+  // / cruces todavía no definidos). Se simulan asumiendo que TODOS los jugadores
+  // los pronosticarán, para reflejar las posibilidades reales de todo el torneo y
+  // no solo de lo ya pronosticado: así los rezagados conservan su chance de remontar.
+  const futuros = Math.max(0, (g.partidos_pendientes ?? 0) - simulables);
+  // Si la función devolvió la versión vieja (sin 'pendientes_detalle') no tenemos
+  // los pronósticos reales; aun así podemos simular los partidos que faltan.
   const sinDatosSim = pendDet === undefined;
-  const haySim = simulables > 0;
-  const prob = haySim ? simularProbabilidades(usuarios, pendDet) : new Map();
+  const haySim = simulables > 0 || futuros > 0;
+  const prob = haySim ? simularProbabilidades(usuarios, pendDet, futuros) : new Map();
+
+  // Techo y pendientes EFECTIVOS: incluyen todos los partidos que faltan (los ya
+  // pronosticados en los que el jugador está activo + las rondas futuras que
+  // todos jugarán). Con esto el estado y la columna Máx. cuadran con las P(Top).
+  const maxEff  = (u) => Number(u.max_posible) + 3 * futuros;
+  const pendEff = (u) => Number(u.pendientes) + futuros;
+  const contendientes = ordenados.filter((u) => maxEff(u) >= ptsLider);
   // "—" cuando no hay simulación; "0%/<1%/n%" cuando sí.
   const fmtPct = (p) => (!haySim ? "—" : p <= 0 ? "0%" : p < 0.005 ? "<1%" : Math.round(p * 100) + "%");
   // Intensidad de color según probabilidad (0–1) para la columna Top 1.
   const heat = (p) => (!haySim || p <= 0 ? "" : `style="background:rgba(0,104,71,${(0.12 + p * 0.6).toFixed(2)})"`);
 
-  // Aviso cuando no se pudo simular pero sí quedan partidos por jugar.
+  // Aviso: solo cuando de plano no queda nada por simular, o cuando falta el
+  // detalle de pronósticos reales (migración vieja) y estamos simulando a ciegas.
   const avisoSim = (!haySim && (g.partidos_pendientes ?? 0) > 0)
-    ? `<p class="ps-proy-aviso">⚠️ ${sinDatosSim
-        ? "Para calcular las probabilidades, vuelve a ejecutar <strong>migracion_panel_super.sql</strong> en Supabase (la versión actual de la función aún no envía los pronósticos pendientes)."
-        : "Aún no hay pronósticos en los partidos pendientes para simular."}
-        Mientras tanto, las columnas P(Top) muestran “—”.</p>`
+    ? `<p class="ps-proy-aviso">⚠️ Aún no hay partidos pendientes que apliquen quiniela para simular. Las columnas P(Top) muestran “—”.</p>`
+    : (sinDatosSim && (g.partidos_pendientes ?? 0) > 0)
+    ? `<p class="ps-proy-aviso">ℹ️ Para afinar el cálculo con los pronósticos ya enviados, vuelve a ejecutar <strong>migracion_panel_super.sql</strong> en Supabase. Mientras tanto, los partidos que faltan se simulan de forma neutral.</p>`
     : "";
 
   pEl.innerHTML = `
@@ -1881,7 +1893,7 @@ async function renderPanelSuper() {
       <tbody>
         ${ordenados.map((u, i) => {
           const esLider = i === 0;
-          const enContencion = Number(u.max_posible) >= ptsLider;
+          const enContencion = maxEff(u) >= ptsLider;
           const estado = esLider ? '<span class="ps-tag lead">Líder</span>'
             : enContencion ? '<span class="ps-tag vivo">En contención</span>'
             : '<span class="ps-tag fuera">Sin alcance</span>';
@@ -1891,8 +1903,8 @@ async function renderPanelSuper() {
               <td>${medalla}</td>
               <td class="ps-proy-nom">${esc(u.nombre)}</td>
               <td class="num"><strong>${u.puntos}</strong></td>
-              <td class="num">${u.pendientes}</td>
-              <td class="num">${u.max_posible}</td>
+              <td class="num">${pendEff(u)}</td>
+              <td class="num">${maxEff(u)}</td>
               <td class="num">${fmtPct(pr.t3)}</td>
               <td class="num">${fmtPct(pr.t2)}</td>
               <td class="num prob1" ${heat(pr.t1)}>${fmtPct(pr.t1)}</td>
@@ -1903,10 +1915,9 @@ async function renderPanelSuper() {
     </table>
     </div>
     <p class="muted small">${contendientes.length} de ${ordenados.length} jugadores siguen con opción matemática al primer lugar.${haySim
-      ? ` Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> (modelo de goles Poisson, ~1.3 por equipo).
-          De los <strong>${g.partidos_pendientes ?? simulables}</strong> partidos pendientes, solo <strong>${simulables}</strong> ya tienen pronósticos y entran en el cálculo${(g.partidos_pendientes ?? 0) - simulables > 0
-            ? `; los otros <strong>${(g.partidos_pendientes ?? 0) - simulables}</strong> son de rondas futuras todavía sin pronosticar y abrirán el panorama al activarse`
-            : ""}. Es una estimación, no una garantía.`
+      ? ` Probabilidades estimadas con <strong>${SIM_N.toLocaleString("es-SV")} simulaciones</strong> (modelo de goles Poisson, ~1.3 por equipo) sobre los <strong>${g.partidos_pendientes ?? (simulables + futuros)}</strong> partidos que faltan del Mundial: <strong>${simulables}</strong> con pronósticos ya digitados${futuros > 0
+          ? ` y <strong>${futuros}</strong> de rondas futuras aún sin definir (se asume que todos los jugadores los pronosticarán)`
+          : ""}. Refleja las posibilidades reales de todo el torneo; es una estimación, no una garantía.`
       : ""}</p>`;
 }
 
@@ -1915,8 +1926,15 @@ async function renderPanelSuper() {
 // Poisson independientes) y suma a cada jugador los puntos que ganaría con sus
 // pronósticos (mejor de los dos: 3 exacto · 1 acertar resultado). Luego ordena
 // y cuenta cuántas veces cada quien cae en el top 1/2/3.
+//
+// 'futuros' = partidos que faltan del Mundial y todavía NO tienen pronósticos
+// (rondas futuras / cruces sin definir). Como no sabemos ni los equipos ni qué
+// marcará cada quien, se asume que TODOS los jugarán: por cada uno se sortea un
+// marcador real (Poisson) y, para cada jugador, un pronóstico (Poisson) que se
+// puntúa contra ese marcador. Así esos partidos reparten variación de forma
+// simétrica y los rezagados conservan una posibilidad real de remontar.
 const SIM_N = 4000;
-function simularProbabilidades(usuarios, pendDet, N = SIM_N) {
+function simularProbabilidades(usuarios, pendDet, futuros = 0, N = SIM_N) {
   const base = usuarios.map((u) => ({ nombre: u.nombre, pts: Number(u.puntos) || 0 }));
   const idx = new Map(base.map((u, i) => [u.nombre, i]));
   const n = base.length;
@@ -1953,6 +1971,16 @@ function simularProbabilidades(usuarios, pendDet, N = SIM_N) {
           if (pts > best) best = pts;
         }
         if (best) tot[j.i] += best;
+      }
+    }
+    // Partidos que faltan y aún no se pronostican: todos los juegan. Un marcador
+    // real por partido (compartido) y un pronóstico sorteado por jugador.
+    for (let f = 0; f < futuros; f++) {
+      const gl = poisson(L), gv = poisson(L), rs = sgn(gl - gv);
+      for (let i = 0; i < n; i++) {
+        const pl = poisson(L), pv = poisson(L);
+        const pts = (pl === gl && pv === gv) ? 3 : (sgn(pl - pv) === rs ? 1 : 0);
+        if (pts) tot[i] += pts;
       }
     }
     // Ordena con un desempate aleatorio diminuto (reparte los empates por igual).
